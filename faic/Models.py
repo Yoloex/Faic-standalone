@@ -1,8 +1,4 @@
-
-import cv2
 import numpy as np
-# import tensorrt as trt
-# import pycuda.driver as cuda
 import torch
 import subprocess as sp
 import torchvision
@@ -53,7 +49,6 @@ class Models():
         return kpss
     
     def delete_models(self):
-
         self.retinaface_model = []
         self.recognition_model = []
         self.swapper_model = []
@@ -67,7 +62,6 @@ class Models():
         return embedding, cropped_image
 
     def calc_swapper_latent(self, source_embedding):
-        
         n_e = source_embedding / l2norm(source_embedding)
         latent = n_e.reshape((1,-1))
         latent = np.dot(latent, self.emap)
@@ -87,7 +81,6 @@ class Models():
 
         self.syncvec.cpu()
         self.swapper_model.run_with_iobinding(io_binding)
-
 
     def run_GPEN_256(self, image, output):
         if not self.GPEN_256_model:
@@ -144,12 +137,9 @@ class Models():
         io_binding.bind_output('477', 'cuda') 
         io_binding.bind_output('500', 'cuda') 
         
-        
         # Sync and run model
         self.syncvec.cpu()        
         self.retinaface_model.run_with_iobinding(io_binding)
-
-
 
         net_outs = io_binding.copy_outputs_to_cpu()
 
@@ -271,7 +261,6 @@ class Models():
                 kpss = kpss[bindex, :]
                 
         return kpss   
-        
         
     def recognize(self, img, face_kps):
         # Find transform 

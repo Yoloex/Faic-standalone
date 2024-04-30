@@ -14,11 +14,6 @@ class Separator_x():
         self.blank = tk.PhotoImage()
         self.sep = tk.Label(self.parent, bg='#090909', image=self.blank, compound='c', border=0, width=self.parent.winfo_width(), height=1)
         self.sep.place(x=self.x, y=self.y)
-        # self.parent.bind('<Configure>', self.update_sep_after_window_resize)
-    
-    # def update_sep_after_window_resize(self, event):
-        # self.parent.update()
-        # self.sep.configure(width=self.parent.winfo_width())
         
     def hide(self):
         self.sep.place_forget()
@@ -27,7 +22,6 @@ class Separator_x():
         self.parent.update()
         self.sep.place(x=self.x, y=self.y)  
         self.sep.configure(width=self.parent.winfo_width())
-   
 
 class Separator_y():
     def __init__(self, parent, x, y): 
@@ -40,10 +34,6 @@ class Separator_y():
         self.sep.place(x=self.x, y=self.y) 
         # self.parent.bind('<Configure>', self.update_sep_after_window_resize)
     
-    # def update_sep_after_window_resize(self, event):
-        # self.parent.update()
-        # self.sep.configure(height=self.parent.winfo_height())
-        
     def hide(self):
         self.sep.place_forget()
 
@@ -441,7 +431,6 @@ class TextSelection():
     def load_default(self):
         self.set(self.default_data[self.name+'Mode'])           
  
-
 class Switch2():
     def __init__(self, parent, name, display_text, style_level, function, argument, width, height, x, y):
         self.blank = tk.PhotoImage()
@@ -736,87 +725,6 @@ class Slider2():
     def load_default(self):
         self.set(self.default_data[self.name+'Amount'])
             
-class Text_Entry():
-    def __init__(self, parent, name, display_text, style_level, function, data_type, width, height, x, y, text_percent):
-        self.blank = tk.PhotoImage()
-
-        self.default_data = DEFAULT_DATA
-        # Capture inputs as instance variables
-        self.parent = parent
-        self.name = name
-        self.function = function
-        self.data_type = data_type
-        self.width = width
-        self.height = height
-        self.style = []
-        self.info = []
-
-        if style_level == 3:
-            self.frame_style = style.canvas_frame_label_3 
-            self.text_style = style.text_3
-            self.sel_off_style = style.text_selection_off_3
-            self.sel_on_style = style.text_selection_on_3
-        
-        if style_level == 2:
-            self.frame_style = style.canvas_frame_label_2
-            self.text_style = style.text_2
-            self.sel_off_style = style.text_selection_off_2
-            self.sel_on_style = style.text_selection_on_2
-        
-        self.display_text = display_text+' '
-        
-     
-        # Initial data
-        self.entry_text = tk.StringVar()
-        self.entry_text.set(self.default_data[self.name])
-        
-        # Frame to hold everything
-        self.ts_frame = tk.Frame(self.parent, self.frame_style, width=self.width, height=self.height)
-        self.ts_frame.place(x=x, y=y)
-        self.ts_frame.bind("<Enter>", lambda event: self.on_enter())
-        
-        self.text_width = int(width*(1.0-text_percent))
-        
-        # Create the text on the left
-        self.text_label = tk.Label(self.ts_frame, self.text_style, image=self.blank, compound='c', text=self.display_text, anchor='e', width=self.text_width, height=height)
-        self.text_label.place(x=0, y=0)
-        
-        
-        
-        self.entry = tk.Entry(self.ts_frame, style.entry_2, textvariable=self.entry_text)
-        self.entry.place(x=self.text_width+20, y=0, width = self.width-self.text_width-50, height=15) 
-        self.entry.bind("<Return>", lambda event: self.send_text(self.entry_text.get())) 
-        
-    def send_text(self, text):
-        self.function(self.data_type, self.name)
-
-    def add_info_frame(self, info):
-        self.info = info 
-        
-    def on_enter(self):
-        if self.info:
-            self.info.configure(text=self.default_data[self.name+'InfoText'])
- 
-    def get(self):
-        return self.entry_text.get()
-    
-    def set(self, value, request_frame=True):
-        pass
-        # self.select_ui_text_selection(value, request_frame)
-        
-    def hide(self):
-        pass
-        
-    def unhide(self):
-        pass 
-        
-    def get_data_type(self):
-        return self.data_type  
-
-    def load_default(self):
-        pass
-        # self.set(self.default_data[self.name+'Mode']) 
-        
 class VRAM_Indicator():
     def __init__(self, parent, style_level, width, height, x, y):
         self.parent = parent
@@ -889,4 +797,3 @@ class VRAM_Indicator():
  
     def unhide(self):
         pass  
-        

@@ -10,6 +10,7 @@ import torch
 import torchvision
 torchvision.disable_beta_transforms_warning()
 import mimetypes
+import pyvirtualcam
 
 import faic.GUIElements as GE
 import faic.Styles as style
@@ -25,17 +26,17 @@ class GUI(tk.Tk):
 
         self.action_q = []
         self.camera = None
-        self.video_image = []
         self.window_last_change = []
         self.blank = tk.PhotoImage()
         self.input_faces_text = []
         self.source_faces_canvas = []
-        self.video = []
         self.found_faces_canvas = []
         self.merged_faces_canvas = []
         self.parameters = {}
         self.control = {}
         self.modal = []
+        self.warning_modal = []
+        self.modal_label = []
         self.widget = {}
         self.static_widget = {}
         self.layer = {}
@@ -64,7 +65,8 @@ class GUI(tk.Tk):
                             "Image":                    [],
                             "Embedding":                []
                             }   
-        self.source_faces = [] 
+        self.source_faces = []
+        self.vcam = None
 #####
     def create_gui(self):
 
@@ -124,7 +126,7 @@ class GUI(tk.Tk):
         frame = tk.Frame(v_f_frame, style.canvas_frame_label_2, height = 42)
         frame.grid(row=0, column=0, columnspan = 2, sticky='NEWS', padx=0, pady=0)
 
-        # Buttons      
+        # Buttons
         self.widget['FacesFolderButton'] = GE.Button(frame, 'LoadSFaces', 2, self.select_faces_path, None, 'control', 10, 1, width=195)
         self.input_faces_text = GE.Text(frame, '', 2, 10, 20, 190, 20)
 
@@ -189,16 +191,6 @@ class GUI(tk.Tk):
         
         self.static_widget['20'] = GE.Separator_y(ff_frame, 111, 0)
 
-    # Preview Window
-        self.video = tk.Toplevel(self)
-        self.video.withdraw()
-        self.video.title('Result')
-        self.video.configure()
-        self.video.resizable(width=False, height=False)
-        self.video.protocol("WM_DELETE_WINDOW", self.handle_close)
-        self.video_preview = tk.Label(self.video, bg='black', width=1280, height=720)
-        self.video_preview.pack(fill='both', expand=True)
-
     ### Parameter Window Canvas ###
 
         canvas = tk.Canvas(r_frame, style.canvas_frame_label_3, bd=0)
@@ -247,6 +239,20 @@ class GUI(tk.Tk):
         self.layer['tooltip_label'] = tk.Label(self.layer['tooltip_frame'], style.info_label, wraplength=width-10, image=self.blank, compound='left', height=80, width=width-10)
         self.layer['tooltip_label'].place(x=5, y=5)
         self.static_widget['13'] = GE.Separator_x(self.layer['tooltip_frame'], 0, 0)
+
+    ### Warning modal
+        self.warning_modal = tk.Toplevel(self)
+        self.warning_modal.title('Warning')
+        self.warning_modal.protocol("WM_DELETE_WINDOW", self.handle_warning_modal_close)
+        self.warning_modal.resizable(width=False, height=False)
+
+        x = self.winfo_screenwidth() / 2 - 15 * 6
+        y = self.winfo_screenheight() / 2 - 6 * 12
+
+        self.warning_modal.geometry("+%d+%d" % (x, y))
+        self.warning_modal.withdraw()
+        self.modal_label = tk.Label(self.warning_modal, width=30, height=6)
+        self.modal_label.pack()
 
     def update_data(self, mode, name):
         if mode=='parameter':
@@ -299,7 +305,6 @@ class GUI(tk.Tk):
 
         # Build UI, update ui with default data
         self.create_gui()
-        self.resize_image()
         
         # Create parameters and controls and and selctively fill with UI data
         for key, value in self.widget.items():
@@ -371,36 +376,6 @@ class GUI(tk.Tk):
         self.source_faces = []
         self.source_faces_canvas.delete("all")
 
-        # First load merged embeddings
-        try:
-            temp0 = []
-            with open("merged_embeddings.txt", "r") as embedfile:
-                temp = embedfile.read().splitlines() 
-
-                for i in range(0, len(temp), 513):
-                    to = [temp[i][6:], np.array(temp[i+1:i+513], dtype='float16')]
-                    temp0.append(to)
-
-            for j in range(len(temp0)):
-                new_source_face = self.source_face.copy()
-                self.source_faces.append(new_source_face)
-                
-                self.source_faces[j]["ButtonState"] = False
-                self.source_faces[j]["Embedding"] = temp0[j][1] 
-                self.source_faces[j]["TKButton"] = tk.Button(self.merged_faces_canvas, style.media_button_off_3, image=self.blank, text=temp0[j][0], height=14, width=84, compound='left')
-
-                self.source_faces[j]["TKButton"].bind("<ButtonRelease-1>", lambda event, arg=j: self.toggle_source_faces_buttons_state(event, arg))
-                self.source_faces[j]["TKButton"].bind("<Shift-ButtonRelease-1>", lambda event, arg=j: self.toggle_source_faces_buttons_state_shift(event, arg))
-                self.source_faces[j]["TKButton"].bind("<MouseWheel>", lambda event: self.merged_faces_canvas.xview_scroll(-int(event.delta/120.0), "units"))
-                
-                self.merged_faces_canvas.create_window((j//4)*92,8+(22*(j%4)), window = self.source_faces[j]["TKButton"],anchor='nw')            
-            
-            self.merged_faces_canvas.configure(scrollregion = self.merged_faces_canvas.bbox("all"))
-            self.merged_faces_canvas.xview_moveto(0)
-        
-        except:
-            pass
-        
         shift_i_len = len(self.source_faces)
         
         # Next Load images
@@ -415,7 +390,7 @@ class GUI(tk.Tk):
             try:
                 file_type = mimetypes.guess_type(file)[0][:5]
             except:
-                print('Unrecognized file type:', file)
+                pass
             else:
                 # Its an image
                 if file_type == 'image':                
@@ -452,35 +427,36 @@ class GUI(tk.Tk):
                     else:
                         print('Bad file', file)
 
-        # snapshot = torch.cuda.memory._snapshot()
-        # with open(f"snapshot.pickle", "wb") as f:
-        #     pickle.dump(snapshot, f)
+        if len(faces) == 0:
+            self.modal_label.configure(text="No face found! \n Please change your face path.")
+            self.warning_modal.deiconify()
 
-        torch.cuda.empty_cache()
-                    
-        # Add faces[] images to buttons
-        delx, dely = 100, 100
-        
-        for i in range(len(faces)): 
-            # Copy the template dict
-            new_source_face = self.source_face.copy()
-            self.source_faces.append(new_source_face)
+        else:
+            torch.cuda.empty_cache()
+                        
+            # Add faces[] images to buttons
+            delx, dely = 100, 100
             
-            shift_i = i+ shift_i_len
-        
-            self.source_faces[shift_i]["Image"] = ImageTk.PhotoImage(image=Image.fromarray(faces[i][0]))
-            self.source_faces[shift_i]["Embedding"] = faces[i][1]
-            self.source_faces[shift_i]["TKButton"] = tk.Button(self.source_faces_canvas, style.media_button_off_3, image= self.source_faces[shift_i]["Image"], height = 90, width = 90)
-            self.source_faces[shift_i]["ButtonState"] = False
+            for i in range(len(faces)): 
+                # Copy the template dict
+                new_source_face = self.source_face.copy()
+                self.source_faces.append(new_source_face)
+                
+                shift_i = i+ shift_i_len
             
-            self.source_faces[shift_i]["TKButton"].bind("<ButtonRelease-1>", lambda event, arg=shift_i: self.toggle_source_faces_buttons_state(event, arg))
-            self.source_faces[shift_i]["TKButton"].bind("<Shift-ButtonRelease-1>", lambda event, arg=shift_i: self.toggle_source_faces_buttons_state_shift(event, arg))
-            self.source_faces[shift_i]["TKButton"].bind("<MouseWheel>", self.source_faces_mouse_wheel)
-            
-            self.source_faces_canvas.create_window((i%2)*delx, (i//2)*dely, window = self.source_faces[shift_i]["TKButton"],anchor='nw')
+                self.source_faces[shift_i]["Image"] = ImageTk.PhotoImage(image=Image.fromarray(faces[i][0]))
+                self.source_faces[shift_i]["Embedding"] = faces[i][1]
+                self.source_faces[shift_i]["TKButton"] = tk.Button(self.source_faces_canvas, style.media_button_off_3, image= self.source_faces[shift_i]["Image"], height = 90, width = 90)
+                self.source_faces[shift_i]["ButtonState"] = False
+                
+                self.source_faces[shift_i]["TKButton"].bind("<ButtonRelease-1>", lambda event, arg=shift_i: self.toggle_source_faces_buttons_state(event, arg))
+                self.source_faces[shift_i]["TKButton"].bind("<Shift-ButtonRelease-1>", lambda event, arg=shift_i: self.toggle_source_faces_buttons_state_shift(event, arg))
+                self.source_faces[shift_i]["TKButton"].bind("<MouseWheel>", self.source_faces_mouse_wheel)
+                
+                self.source_faces_canvas.create_window((i%2)*delx, (i//2)*dely, window = self.source_faces[shift_i]["TKButton"],anchor='nw')
 
-            self.static_widget['input_faces_scrollbar'].resize_scrollbar(None)
-    
+                self.static_widget['input_faces_scrollbar'].resize_scrollbar(None)
+
     def find_face(self):
         if self.camera:
             self.camera.release()
@@ -491,10 +467,10 @@ class GUI(tk.Tk):
 
         while True:
             success, img = self.camera.read()
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
             if success:
                 try:
+                    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
                     img = torch.from_numpy(img).to('cuda')
                     img = img.permute(2,0,1)
                     kpss = self.models.run_detect(img, max_num=50)
@@ -539,25 +515,15 @@ class GUI(tk.Tk):
                         
                         break
             
-            if time.time() - start > 7:
-                warning_modal = tk.Toplevel(self)
-                warning_modal.title('Warning')
-                warning_modal.configure()
-                warning_modal.resizable(width=False, height=False)
+            if time.time() - start > 5:
                 
-                x = self.winfo_screenwidth() / 2 - 15 * 6
-                y = self.winfo_screenheight() / 2 - 6 * 12
-
-                warning_modal.geometry("+%d+%d" % (x, y))
-                modal_label = tk.Label(warning_modal, width=30, height=6, text="Can't detect your face. \nPlease change your camera device")
-                modal_label.pack()
-                warning_modal.deiconify()
+                self.modal_label.configure(text="Can't detect your face. \nPlease change your camera device")
+                self.warning_modal.deiconify()
                 
                 break
         
         self.camera.release()
         
-    # toggle the target faces button and make assignments        
     def toggle_source_faces_buttons_state(self, event, button):  
         # jot down the current state of the button
         state = self.source_faces[button]["ButtonState"]
@@ -640,33 +606,20 @@ class GUI(tk.Tk):
         self.add_action("target_faces", self.target_faces)
     
     def set_image(self, image):
-        self.video_image = image[0]
-
         try:
-            self.resize_image()
+            if len(image) != 0 and self.widget['SwapFacesButton'].get():
+                image = cv2.resize(image[0], (1280, 720))
+                self.vcam.send(image)
         except:
             print('Swap has been stopped!')
 
-    def resize_image(self):
-        image = self.video_image
-
-        if len(image) != 0 and self.widget['SwapFacesButton'].get():
-            self.video.deiconify()
-            image = cv2.resize(image, (1280, 720))
-
-            image = Image.fromarray(image)
-            self.video_preview.image = ImageTk.PhotoImage(image)
-            self.video_preview.configure(image=self.video_preview.image)
-
     def check_for_video_resize(self):
-            
         # Read the geometry from the last time json was updated. json only updates once the window ahs stopped changing
         win_geom = '%dx%d+%d+%d' % (self.json_dict['dock_win_geom'][0], self.json_dict['dock_win_geom'][1] , self.json_dict['dock_win_geom'][2], self.json_dict['dock_win_geom'][3])
-           
+
         # # window has started changing
         if self.winfo_geometry() != win_geom:
             # Resize image in video window
-            self.resize_image()
             for k, v in self.widget.items():
                 v.hide()
             for k, v in self.static_widget.items():
@@ -705,20 +658,28 @@ class GUI(tk.Tk):
     
     def toggle_swap(self):
         if not self.widget['SwapFacesButton'].get():
-            self.widget['SwapFacesButton'].toggle_button()
-
             if len(self.target_faces) > 0 and any(source_button["ButtonState"] == True for source_button in self.source_faces):
                 self.add_action('load_webcam')
-        
-        self.update_data('control', 'SwapFacesButton')
-    
-    def handle_close(self):
-        if self.widget['SwapFacesButton'].get():
+                self.widget['SwapFacesButton'].toggle_button()
+                self.widget['SwapFacesButton'].button.configure(text=' Stop Faic Cam')
+                self.vcam = pyvirtualcam.Camera(width=1280, height=720, fps=15)
+            
+            else:
+                self.modal_label.configure(text='Target or source face is not selected!\nPlease select all of these before start')
+                self.warning_modal.deiconify()
+
+        else:
             self.add_action('stop_swap')
             self.widget['SwapFacesButton'].toggle_button()
+            self.widget['SwapFacesButton'].button.configure(text=' Start Faic Cam')
             self.update_data('control', 'SwapFacesButton')
-            self.video.withdraw()
+            self.vcam.close()
+
+        self.update_data('control', 'SwapFacesButton')
     
+    def handle_warning_modal_close(self):
+        self.warning_modal.withdraw()
+
     def add_action(self, action, parameter=None): # 
         self.action_q.append([action, parameter]) 
 
@@ -731,9 +692,5 @@ class GUI(tk.Tk):
             self.static_widget['vram_indicator'].set(used, total)        
         
     def clear_mem(self):
-        self.widget['RestorerSwitch'].set(False)
-        self.widget['OccluderSwitch'].set(False)
-        self.widget['SwapFacesButton'].set(False)
-
         self.models.delete_models()
         torch.cuda.empty_cache()
