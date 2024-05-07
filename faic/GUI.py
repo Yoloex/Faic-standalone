@@ -608,8 +608,7 @@ class GUI(tk.Tk):
     def set_image(self, image):
         try:
             if len(image) != 0 and self.widget['SwapFacesButton'].get():
-                image = cv2.resize(image[0], (640, 480))
-                self.vcam.send(image)
+                self.vcam.send(image[0])
         except:
             print('Swap has been stopped!')
 

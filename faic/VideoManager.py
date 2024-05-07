@@ -83,8 +83,6 @@ class VideoManager():
             self.process_qs.append(new_process_q)
 
         self.capture = cv2.VideoCapture(device)
-        self.capture.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-        self.capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 360)
         self.current_frame = 0
         self.output_frame = 0
         
