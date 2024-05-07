@@ -19,10 +19,8 @@ device = 'cuda'
 lock=threading.Lock()
 
 class VideoManager():  
-    def __init__(self, models ):
+    def __init__(self, models):
         self.models = models
-        # Model related
-        self.swapper_model = []             # insightface swapper model
 
         self.arcface_dst = np.array( [[38.2946, 51.6963], [73.5318, 51.5014], [56.0252, 71.7366], [41.5493, 92.3655], [70.7299, 92.2041]], dtype=np.float32)     
         self.FFHQ_kps = np.array([[ 192.98138, 239.94708 ], [ 318.90277, 240.1936 ], [ 256.63416, 314.01935 ], [ 201.26117, 371.41043 ], [ 313.08905, 371.15118 ] ])
@@ -61,11 +59,10 @@ class VideoManager():
         self.process_qs = []
 
     def load_models(self):
-        swap = torch.randn([1, 3, 128, 128], dtype=torch.float32).to('cuda')
-        img = torch.randn([1, 3, 256, 256], dtype=torch.float32).to('cuda')
-        mask = torch.randn([256, 256], dtype=torch.float32).to('cuda')
-        latent = torch.randn([1, 512], dtype=torch.float32).to('cuda')
-        det_img = torch.randn([3, 480, 640], dtype=torch.float32).to('cuda')
+        swap = torch.randn([1, 3, 128, 128], dtype=torch.float32).to(device)
+        img = torch.randn([1, 3, 256, 256], dtype=torch.float32).to(device)
+        latent = torch.randn([1, 512], dtype=torch.float32).to(device)
+        det_img = torch.randn([3, 480, 640], dtype=torch.float32).to(device)
         kps = np.random.randn(5, 2)
 
         self.models.run_swapper(swap, latent, swap)
@@ -86,10 +83,11 @@ class VideoManager():
             self.process_qs.append(new_process_q)
 
         self.capture = cv2.VideoCapture(device)
+        self.capture.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+        self.capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 360)
         self.current_frame = 0
         self.output_frame = 0
         
-    ## Action queue
     def add_action(self, action, param):
         temp = [action, param]
         self.action_q.append(temp)    
@@ -102,7 +100,6 @@ class VideoManager():
         self.action_q.pop(0)
         return action
      
-    ## Queues for the Coordinator
     def get_frame(self):
         frame = self.frame_q[0]
         self.frame_q.pop(0)
@@ -123,7 +120,6 @@ class VideoManager():
                     index=idx
         return index, min_frame
  
-    # @profile
     def process(self):
         
         if len(self.found_faces):
@@ -174,7 +170,6 @@ class VideoManager():
                     self.process_qs[index]['ThreadTime'] = []
                     self.frame_timer += 1.0/self.fps
                     
-    # @profile
     def thread_video_read(self):  
         with lock:
             success, target_image = self.capture.read()
@@ -192,7 +187,6 @@ class VideoManager():
                     self.output_frame += 1
                     break
 
-    # @profile
     def swap_video(self, target_image):   
         # Grab a local copy of the parameters to prevent threading issues
         parameters = self.parameters.copy()
@@ -260,8 +254,7 @@ class VideoManager():
             print(name, round(time.time()-timing, 5), 's')
         return result
 
-    # @profile    
-    def swap_core(self, img, kps, parameters, control): # img = RGBa
+    def swap_core(self, img, kps, parameters, control):
         # 512 transforms
         dst = self.arcface_dst * 4.0
         dst[:,0] += 32.0
@@ -299,10 +292,6 @@ class VideoManager():
         swap = torch.mul(swap, 255) # should I carry [0..1] through the pipe insteadf?
         swap = torch.clamp(swap, 0, 255)
         swap = swap.type(torch.uint8)
-
-        # test = swap.permute(1, 2, 0)
-        # test = test.cpu().numpy()
-        # cv2.imwrite('2.jpg', test)
 
         swap_128 = swap
         swap = t512(swap)
@@ -387,10 +376,8 @@ class VideoManager():
         swap = swap.permute(2,0,1)
         img[0:3, top:bottom, left:right] = swap  
 
-
         return img
         
-    # @profile    
     def apply_occlusion(self, img, amount):        
         img = torch.div(img, 255)
         img = torch.unsqueeze(img, 0)
@@ -505,25 +492,4 @@ class VideoManager():
         return diff    
     
     def clear_mem(self):
-        del self.swapper_model
-        del self.GFPGAN_model
-        del self.occluder_model
-        del self.face_parsing_model
-        del self.codeformer_model
-        del self.GPEN_256_model
-        del self.GPEN_512_model
-        del self.resnet_model
-        del self.detection_model
-        del self.recognition_model
-        
-        self.swapper_model = []  
-        self.GFPGAN_model = []
-        self.occluder_model = []
-        self.face_parsing_model = []
-        self.codeformer_model = []
-        self.GPEN_256_model = []
-        self.GPEN_512_model = []
-        self.resnet_model = []
-        self.detection_model = []
-        self.recognition_model = []
-                
+        del self.models
