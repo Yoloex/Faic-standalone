@@ -608,7 +608,7 @@ class GUI(tk.Tk):
     def set_image(self, image):
         try:
             if len(image) != 0 and self.widget['SwapFacesButton'].get():
-                image = cv2.resize(image[0], (1280, 720))
+                image = cv2.resize(image[0], (640, 480))
                 self.vcam.send(image)
         except:
             print('Swap has been stopped!')
@@ -662,7 +662,7 @@ class GUI(tk.Tk):
                 self.add_action('load_webcam')
                 self.widget['SwapFacesButton'].toggle_button()
                 self.widget['SwapFacesButton'].button.configure(text=' Stop Faic Cam')
-                self.vcam = pyvirtualcam.Camera(width=1280, height=720, fps=15)
+                self.vcam = pyvirtualcam.Camera(width=640, height=480, fps=25)
             
             else:
                 self.modal_label.configure(text='Target or source face is not selected!\nPlease select all of these before start')
