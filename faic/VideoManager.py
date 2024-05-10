@@ -2,8 +2,10 @@ import cv2
 import threading
 import time
 import numpy as np
+from queue import Queue
 from skimage import transform as trans
 from math import floor, ceil
+from threading import Thread
 import onnxruntime
 import torchvision
 import torch
@@ -18,6 +20,7 @@ device = 'cuda'
 
 lock=threading.Lock()
 
+
 class VideoManager():  
     def __init__(self, models):
         self.models = models
@@ -25,38 +28,20 @@ class VideoManager():
         self.arcface_dst = np.array( [[38.2946, 51.6963], [73.5318, 51.5014], [56.0252, 71.7366], [41.5493, 92.3655], [70.7299, 92.2041]], dtype=np.float32)     
         self.FFHQ_kps = np.array([[ 192.98138, 239.94708 ], [ 318.90277, 240.1936 ], [ 256.63416, 314.01935 ], [ 201.26117, 371.41043 ], [ 313.08905, 371.15118 ] ])
         
-        #Video related
-        self.capture = []                   # cv2 video
-        self.current_frame = 0              # the input frame index
-        self.output_frame = 0               # the output frame index
+        self.capture = None                 # cv2 video
         
-        # Play related
-        self.frame_timer = 0.0      # used to set the framerate during playing
-
-        # Queues
         self.action_q = []                  # queue for sending to the coordinator
         self.frame_q = []                   # queue for converted result frames that are ready for coordinator
+        self.video_q = Queue(maxsize=1)
+        
+        # Threads
+        self.read_thread = None
+        self.swap_thread = None
 
-        # swapping related
-        self.found_faces = []   # array that maps the found faces to source faces    
+        self.found_faces = []               # embedding that maps the found faces to source faces    
         self.parameters = []
-
-        self.fps = 1.0
-        self.fps_average = []
-        
-        self.perf_test = False
         self.control = []
-        
         self.latent = None
-
-        self.process_q =    {
-                            "Thread":                   [],
-                            "FrameNumber":              [],
-                            "ProcessedFrame":           [],
-                            "Status":                   'clear',
-                            "ThreadTime":               []
-                            }   
-        self.process_qs = []
 
     def load_models(self):
         swap = torch.randn([1, 3, 128, 128], dtype=torch.float32).to(device)
@@ -78,13 +63,7 @@ class VideoManager():
 
         device = 0 if self.parameters['CameraSourceSel'] == 'HD Webcam' else 1
 
-        for i in range(PARAM_VARS['ThreadsNum']):
-            new_process_q = self.process_q.copy()
-            self.process_qs.append(new_process_q)
-
         self.capture = cv2.VideoCapture(device)
-        self.current_frame = 0
-        self.output_frame = 0
         
     def add_action(self, action, param):
         temp = [action, param]
@@ -119,7 +98,6 @@ class VideoManager():
         return index, min_frame
  
     def process(self):
-        
         if len(self.found_faces):
             source = self.found_faces[0]['AssignedEmbedding']
             self.latent = torch.from_numpy(self.models.calc_swapper_latent(source)).float().to('cuda')
@@ -127,63 +105,25 @@ class VideoManager():
 
         if len(self.control) > 0:
             if self.control['SwapFacesButton']:
-                for item in self.process_qs:
-                    if item['Status'] == 'clear':
-                        item['Thread'] = threading.Thread(target=self.thread_video_read).start()
-                        item['FrameNumber'] = self.current_frame
-                        item['Status'] = 'started'
-                        item['ThreadTime'] = time.time()
-
-                        self.current_frame += 1
-                        break
+                if self.read_thread is None:
+                    self.read_thread = Thread(target=self.read_frame)
+                    self.read_thread.start()
+                if self.swap_thread is None:
+                    self.swap_thread = Thread(target=self.swap_frame)
+                    self.swap_thread.start()
             else:
                 if self.capture:
                     self.capture.release()
         else:
             if self.capture:
                 self.capture.release()
-                
-        # Always be emptying the queues
-        time_diff = time.time() - self.frame_timer
-
-        if time_diff >= 1.0/float(self.fps):
-
-            index, min_frame = self.find_lowest_frame(self.process_qs)
-
-            if index != -1:
-                if self.process_qs[index]['Status'] == 'finished':
-                    temp = [self.process_qs[index]['ProcessedFrame'], self.process_qs[index]['FrameNumber']]
-                    self.frame_q.append(temp)
-
-                    # Report fps, other data
-                    self.fps_average.append(1.0/time_diff)
-                    if len(self.fps_average) >= floor(self.fps):
-                        fps = round(np.average(self.fps_average), 2)
-                        msg = "%s fps, %s process time" % (fps, round(self.process_qs[index]['ThreadTime'], 4))
-                        self.fps_average = []
-
-                    self.process_qs[index]['Status'] = 'clear'
-                    self.process_qs[index]['Thread'] = []
-                    self.process_qs[index]['FrameNumber'] = []
-                    self.process_qs[index]['ThreadTime'] = []
-                    self.frame_timer += 1.0/self.fps
-                    
-    def thread_video_read(self):  
-        with lock:
-            success, target_image = self.capture.read()
-
-        if success:
-            target_image = cv2.cvtColor(target_image, cv2.COLOR_BGR2RGB)
-            temp = self.swap_video(target_image)
-            
-            for item in self.process_qs:
-                if item['FrameNumber'] == self.output_frame:
-                    item['ProcessedFrame'] = temp
-                    item['Status'] = 'finished'
-                    item['ThreadTime'] = time.time() - item['ThreadTime']
-                    
-                    self.output_frame += 1
-                    break
+        
+    def swap_frame(self):
+        while True:
+            if self.video_q.qsize() > 0:
+                target_image = self.video_q.get()
+                res = self.swap_video(target_image)
+                self.frame_q.append(res)
 
     def swap_video(self, target_image):   
         # Grab a local copy of the parameters to prevent threading issues
@@ -216,14 +156,11 @@ class VideoManager():
             img = tscale(img)
 
         # Find all faces in frame and return a list of 5-pt kpss
-        kpss = self.func_w_test("detect", self.models.run_detect, img, max_num=1, score=PARAM_VARS['DetectScore'])
+        kpss = self.models.run_detect(img, max_num=1, score=PARAM_VARS['DetectScore'])
         if kpss is None or len(kpss) == 0:
             return
-        img = self.func_w_test("swap_video", self.swap_core, img, kpss[0], parameters, control)
+        img = self.swap_core(img, kpss[0], parameters, control)
         img = img.permute(1,2,0)
-        
-        if self.perf_test:
-            print('------------------------')  
         
         # Unscale small videos
         if img_x <512 or img_y < 512:
@@ -244,13 +181,6 @@ class VideoManager():
         b = np.dot(vec1.T, vec1)
         c = np.dot(vec2.T, vec2)
         return 1 - (a/(np.sqrt(b)*np.sqrt(c)))
-
-    def func_w_test(self, name, func, *args, **argsv):
-        timing = time.time()
-        result = func(*args, **argsv)
-        if self.perf_test:
-            print(name, round(time.time()-timing, 5), 's')
-        return result
 
     def swap_core(self, img, kps, parameters, control):
         # 512 transforms
@@ -318,12 +248,11 @@ class VideoManager():
 
         # Restorer
         if parameters["RestorerSwitch"]: 
-            swap = self.func_w_test('Restorer', self.apply_restorer, swap, parameters)  
+            swap = self.apply_restorer(swap, parameters)  
         
         # Add blur to swap_mask results
         gauss = transforms.GaussianBlur(PARAM_VARS['BlendAmout']*2+1, (PARAM_VARS['BlendAmout']+1)*0.2)
-        swap_mask = gauss(swap_mask)  
-        
+        swap_mask = gauss(swap_mask)
 
         # Combine border and swap mask, scale, and apply to swap
         swap_mask = torch.mul(swap_mask, border_mask)
@@ -430,5 +359,13 @@ class VideoManager():
 
         return outpred        
         
+    def read_frame(self):
+        while True:
+            success, img = self.capture.read()
+
+            if success:
+                img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+                self.video_q.put(img)
+
     def clear_mem(self):
         del self.models

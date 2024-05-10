@@ -40,7 +40,7 @@ DEFAULT_DATA = {
 'BlendSliderInfoText':              'BLEND:\nCombined masks blending distance. Is not applied to the border masks.',
 'BlendSliderMax':                   100,
 'BlendSliderMin':                   0,
-'RestorerSliderAmount':             75,
+'RestorerSliderAmount':             100,
 'RestorerSliderInc':                5,
 'RestorerSliderInfoText':           'RESTORER AMOUNT:\nBlends the Restored results back into the original swap.',
 'RestorerSliderMax':                100,
@@ -66,7 +66,6 @@ PARAM_VARS =    {
     'BorderSidesSlider':        10,
     'BorderBottomSlider':       10,
     'BorderBlurSlider':         10,
-    'ThreadsNum':               1,
     'DetectScore':              0.5,
     'BlendAmout':               5
 }

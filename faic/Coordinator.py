@@ -15,13 +15,12 @@ def coordinator():
         action.append(gui.get_action())
     if vm.get_action_length() > 0:
         action.append(vm.get_action())
-####################    
     if vm.get_frame_length() > 0:
         frame.append(vm.get_frame())
+    
     if len(frame) > 0:
         gui.set_image(frame[0])
         frame.pop(0)
-####################   
     if len(action) > 0:
         if action[0][0] == "target_faces":
             vm.assign_found_faces(action[0][1])
@@ -31,10 +30,7 @@ def coordinator():
             action.pop(0) 
         elif action [0][0] == "set_stop":
             vm.stop_marker = action[0][1]
-            action.pop(0)  
-        elif action [0][0] == "perf_test":
-            vm.perf_test = action[0][1]
-            action.pop(0)               
+            action.pop(0)            
         elif action [0][0] == 'ui_vars':
             vm.ui_data = action[0][1]
             action.pop(0) 
@@ -93,3 +89,6 @@ def run():
     coordinator()
 
     gui.mainloop()
+    
+    vm.read_thread.join()
+    vm.swap_thread.join()
