@@ -1,7 +1,7 @@
 import os
 import cv2
 import tkinter as tk
-from tkinter import filedialog
+from tkinter import filedialog, messagebox
 import numpy as np
 from PIL import Image, ImageTk
 import json
@@ -34,9 +34,6 @@ class GUI(tk.Tk):
         self.merged_faces_canvas = []
         self.parameters = {}
         self.control = {}
-        self.modal = []
-        self.warning_modal = []
-        self.modal_label = []
         self.widget = {}
         self.static_widget = {}
         self.layer = {}
@@ -240,20 +237,6 @@ class GUI(tk.Tk):
         self.layer['tooltip_label'].place(x=5, y=5)
         self.static_widget['13'] = GE.Separator_x(self.layer['tooltip_frame'], 0, 0)
 
-    ### Warning modal
-        self.warning_modal = tk.Toplevel(self)
-        self.warning_modal.title('Warning')
-        self.warning_modal.protocol("WM_DELETE_WINDOW", self.handle_warning_modal_close)
-        self.warning_modal.resizable(width=False, height=False)
-
-        x = self.winfo_screenwidth() / 2 - 15 * 6
-        y = self.winfo_screenheight() / 2 - 6 * 12
-
-        self.warning_modal.geometry("+%d+%d" % (x, y))
-        self.warning_modal.withdraw()
-        self.modal_label = tk.Label(self.warning_modal, width=30, height=6)
-        self.modal_label.pack()
-
     def update_data(self, mode, name):
         if mode=='parameter':
             self.parameters[name] = self.widget[name].get()
@@ -428,8 +411,7 @@ class GUI(tk.Tk):
                         print('Bad file', file)
 
         if len(faces) == 0:
-            self.modal_label.configure(text="No face found! \n Please change your face path.")
-            self.warning_modal.deiconify()
+            messagebox.showwarning(title='Warning', message="No face found! \n Please change your face path.")
 
         else:
             torch.cuda.empty_cache()
@@ -510,25 +492,20 @@ class GUI(tk.Tk):
                         
                         # Add button to canvas
                         self.found_faces_canvas.create_window((last_index)*92, 8, window=self.target_faces[last_index]["TKButton"], anchor='nw') 
-
                         self.found_faces_canvas.configure(scrollregion = self.found_faces_canvas.bbox("all"))
                         
                         break
             
             if time.time() - start > 5:
-                
-                self.modal_label.configure(text="Can't detect your face. \nPlease change your camera device")
-                self.warning_modal.deiconify()
+                messagebox.showwarning(title='Warning', message="Can't detect your face. \nPlease change your camera device")
                 
                 break
         
         self.camera.release()
         
     def toggle_source_faces_buttons_state(self, event, button):  
-        # jot down the current state of the button
         state = self.source_faces[button]["ButtonState"]
 
-        # Set all Source Face buttons to False 
         for face in self.source_faces:      
             face["TKButton"].config(style.media_button_off_3)
             face["ButtonState"] = False
@@ -546,16 +523,11 @@ class GUI(tk.Tk):
         # If there are target faces
         if self.target_faces:
             for face in self.target_faces:
-                
                 # Find the first target face that is highlighted
                 if face["ButtonState"]:
-                    
-                    # Clear the assignments
                     face["SourceFaceAssignments"] = []
                     
-                    # If a source face is highlighted
-                    if self.source_faces[button]["ButtonState"]:
-                        # Append new assignment 
+                    if self.source_faces[button]["ButtonState"] is True:
                         face["SourceFaceAssignments"].append(button)
                         face['AssignedEmbedding'] = self.source_faces[button]['Embedding']
 
@@ -580,27 +552,15 @@ class GUI(tk.Tk):
         # If a target face is selected
         for tface in self.target_faces:
             if tface["ButtonState"]:
-            
-                # Clear all of the assignments
                 tface["SourceFaceAssignments"] = []
-                # tface['AssignedEmbedding'] = np.zeros(512, dtype=np.float)
                 
                 # Iterate through all Source faces
-                num = 0
                 temp_holder = []
                 for j in range(len(self.source_faces)):  
-                    
-                    # If the source face is active
-                    if self.source_faces[j]["ButtonState"]:
+                    if self.source_faces[j]["ButtonState"] is True:
                         tface["SourceFaceAssignments"].append(j)
                         temp_holder.append(self.source_faces[j]['Embedding'])
-                
-                if temp_holder:
-                    if self.widget['MergeTextSel'].get()=='Median':
-                        tface['AssignedEmbedding'] = np.median(temp_holder,0)
-                    elif self.widget['MergeTextSel'].get()=='Mean':
-                        tface['AssignedEmbedding'] = np.mean(temp_holder,0)    
-
+         
                 break
             
         self.add_action("target_faces", self.target_faces)
@@ -608,9 +568,9 @@ class GUI(tk.Tk):
     def set_image(self, image):
         try:
             if len(image) != 0 and self.widget['SwapFacesButton'].get():
-                self.vcam.send(image[0])
-        except:
-            print('Swap has been stopped!')
+                self.vcam.send(image)
+        except Exception as e:
+            print('Swap has been stopped with {}'.format(e))
 
     def check_for_video_resize(self):
         # Read the geometry from the last time json was updated. json only updates once the window ahs stopped changing
@@ -627,8 +587,6 @@ class GUI(tk.Tk):
             # Check if window has stopped changing
             if self.winfo_geometry() != self.window_last_change:
                 self.window_last_change = self.winfo_geometry()
-
-            # The window has stopped changing
             else:
                 for k, v in self.widget.items():
                     v.unhide()
@@ -640,19 +598,20 @@ class GUI(tk.Tk):
                 win_geom = [str1[0], str2[0], str2[1], str2[2]]
                 win_geom = [int(strings) for strings in win_geom]
                 self.json_dict['dock_win_geom'] = win_geom
+                
                 with open("data.json", "w") as outfile:
                     json.dump(self.json_dict, outfile)            
        
     def get_action(self):
         action = self.action_q[0]
         self.action_q.pop(0)
+
         return action
         
     def get_action_length(self):
         return len(self.action_q)
         
     def findCosineDistance(self, vector1, vector2):
-
         return 1 - np.dot(vector1, vector2)/(np.linalg.norm(vector1)*np.linalg.norm(vector2))
     
     def toggle_swap(self):
@@ -664,9 +623,8 @@ class GUI(tk.Tk):
                 self.vcam = pyvirtualcam.Camera(width=640, height=480, fps=25)
             
             else:
-                self.modal_label.configure(text='Target or source face is not selected!\nPlease select all of these before start')
-                self.warning_modal.deiconify()
-
+                messagebox.showwarning(title='Warning', message='Target or source face is not selected!\nPlease select all of these before start')
+                
         else:
             self.add_action('stop_swap')
             self.widget['SwapFacesButton'].toggle_button()
@@ -676,9 +634,6 @@ class GUI(tk.Tk):
 
         self.update_data('control', 'SwapFacesButton')
     
-    def handle_warning_modal_close(self):
-        self.warning_modal.withdraw()
-
     def add_action(self, action, parameter=None): # 
         self.action_q.append([action, parameter]) 
 
