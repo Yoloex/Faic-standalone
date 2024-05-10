@@ -376,42 +376,6 @@ class VideoManager():
 
         return img
         
-    def apply_occlusion(self, img, amount):        
-        img = torch.div(img, 255)
-        img = torch.unsqueeze(img, 0)
-        outpred = torch.ones((256,256), dtype=torch.float32, device=device).contiguous()
-        
-        self.models.run_occluder(img, outpred)        
-                
-        outpred = torch.squeeze(outpred)
-        outpred = (outpred > 0)
-        outpred = torch.unsqueeze(outpred, 0).type(torch.float32)
-        
-        if amount >0:                   
-            kernel = torch.ones((1,1,3,3), dtype=torch.float32, device=device)
-
-            for i in range(int(amount)):
-                outpred = torch.nn.functional.conv2d(outpred, kernel, padding=(1, 1))       
-                outpred = torch.clamp(outpred, 0, 1)
-            
-            outpred = torch.squeeze(outpred)
-            
-        if amount <0:      
-            outpred = torch.neg(outpred)
-            outpred = torch.add(outpred, 1)
-            kernel = torch.ones((1,1,3,3), dtype=torch.float32, device=device)
-
-            for i in range(int(-amount)):
-                outpred = torch.nn.functional.conv2d(outpred, kernel, padding=(1, 1))       
-                outpred = torch.clamp(outpred, 0, 1)
-            
-            outpred = torch.squeeze(outpred)
-            outpred = torch.neg(outpred)
-            outpred = torch.add(outpred, 1)
-            
-        outpred = torch.reshape(outpred, (1, 256, 256)) 
-        return outpred         
-        
     def apply_restorer(self, swapped_face_upscaled, parameters):     
         temp = swapped_face_upscaled
         t512 = v2.Resize((512, 512), antialias=False)
@@ -466,28 +430,5 @@ class VideoManager():
 
         return outpred        
         
-    def apply_fake_diff(self, swapped_face, original_face, DiffAmount):
-        swapped_face = swapped_face.permute(1,2,0)
-        original_face = original_face.permute(1,2,0)
-
-        diff = swapped_face - original_face
-        diff = torch.abs(diff)
-        
-        # Find the diffrence between the swap and original, per channel
-        fthresh = DiffAmount*2.55
-        
-        # Bimodal
-        diff[diff<fthresh] = 0
-        diff[diff>=fthresh] = 1 
-        
-        # If any of the channels exceeded the threshhold, them add them to the mask
-        diff = torch.sum(diff, dim=2)
-        diff = torch.unsqueeze(diff, 2)
-        diff[diff>0] = 1
-        
-        diff = diff.permute(2,0,1)
-
-        return diff    
-    
     def clear_mem(self):
         del self.models
