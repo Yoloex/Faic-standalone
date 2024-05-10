@@ -63,7 +63,6 @@ PARAM_VARS =    {
     'SimilarThres':             0.85,
     'BorderTopSlider':          10,
     'BorderSidesSlider':        10,
-    'BorderSidesSlider':        10,
     'BorderBottomSlider':       10,
     'BorderBlurSlider':         10,
     'DetectScore':              0.5,
