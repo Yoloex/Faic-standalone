@@ -1,4 +1,5 @@
 import tkinter as tk
+from tkinter.font import Font
 
 from PIL import Image, ImageTk
 
@@ -434,7 +435,7 @@ class TextSelection:
 
         # Loop through the parameter modes, create a label
         # Gotta find the size of the buttons according to the font
-        self.font = tk.font.Font(family="Segoe UI", size=10, weight="normal")
+        self.font = Font(family="Segoe UI", size=10, weight="normal")
         x_spacing = self.text_width + 10
 
         for mode in self.default_data[self.name + "Modes"]:
