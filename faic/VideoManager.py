@@ -68,10 +68,13 @@ class VideoManager:
         latent = torch.randn([1, 512], dtype=torch.float32).to(device)
         det_img = torch.randn([3, 480, 640], dtype=torch.float32).to(device)
         kps = np.random.randn(5, 2)
+        sr_in = torch.randn([1, 3, 480, 640], dtype=torch.float32).to(device)
+        sr_out = torch.randn([1, 3, 960, 1280], dtype=torch.float32).to(device)
 
         self.models.run_swapper(swap, latent, swap)
         self.models.run_GPEN_256(img, img)
         self.models.run_recognize(det_img, kps)
+        # self.models.run_super_resolution(sr_in, sr_out)
 
     def assign_found_faces(self, found_faces):
         self.found_faces = found_faces
@@ -83,6 +86,8 @@ class VideoManager:
         device = 0 if self.parameters["CameraSourceSel"] == "HD Webcam" else 1
 
         self.capture = cv2.VideoCapture(device)
+        self.capture.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+        self.capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
     def add_action(self, action, param):
         temp = [action, param]
@@ -103,18 +108,6 @@ class VideoManager:
 
     def get_frame_length(self):
         return len(self.frame_q)
-
-    def find_lowest_frame(self, queues):
-        min_frame = 999999999
-        index = -1
-
-        for idx, thread in enumerate(queues):
-            frame = thread["FrameNumber"]
-            if frame != []:
-                if frame < min_frame:
-                    min_frame = frame
-                    index = idx
-        return index, min_frame
 
     def process(self):
         if len(self.found_faces):
@@ -189,19 +182,14 @@ class VideoManager:
             img = img.permute(2, 0, 1)
             img = tscale(img)
             img = img.permute(1, 2, 0)
-
+            # img = tscale(img / 255).contiguous()
+            # outpred = torch.empty((1, 3, 960, 1280), dtype=torch.float32, device=device).contiguous()
+            # self.models.run_super_resolution(img, outpred)
+            # img = outpred.squeeze().permute(1, 2, 0)
+            # img = torch.clamp(img * 255, 0, 255)
         img = img.cpu().numpy()
 
         return img.astype(np.uint8)
-
-    def findCosineDistance(self, vector1, vector2):
-        vec1 = vector1.flatten()
-        vec2 = vector2.flatten()
-
-        a = np.dot(vec1.T, vec2)
-        b = np.dot(vec1.T, vec1)
-        c = np.dot(vec2.T, vec2)
-        return 1 - (a / (np.sqrt(b) * np.sqrt(c)))
 
     def swap_core(self, img, kps, parameters, control):
         # 512 transforms
