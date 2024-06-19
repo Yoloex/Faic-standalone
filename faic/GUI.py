@@ -833,9 +833,6 @@ class GUI(tk.Tk):
     def get_action_length(self):
         return len(self.action_q)
 
-    def findCosineDistance(self, vector1, vector2):
-        return 1 - np.dot(vector1, vector2) / (np.linalg.norm(vector1) * np.linalg.norm(vector2))
-
     def toggle_swap(self):
         if not self.widget["SwapFacesButton"].get():
             if len(self.target_faces) > 0 and any(
@@ -844,7 +841,7 @@ class GUI(tk.Tk):
                 self.add_action("load_webcam")
                 self.widget["SwapFacesButton"].toggle_button()
                 self.widget["SwapFacesButton"].button.configure(text=" Stop Faic Cam")
-                self.vcam = pyvirtualcam.Camera(width=640, height=480, fps=25)
+                self.vcam = pyvirtualcam.Camera(width=1280, height=720, fps=25)
 
             else:
                 messagebox.showwarning(
