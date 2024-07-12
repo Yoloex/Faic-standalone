@@ -1,4 +1,5 @@
 import tkinter as tk
+from tkinter import ttk
 from tkinter.font import Font
 
 from PIL import Image, ImageTk
@@ -180,7 +181,9 @@ class Scrollbar_y:
         handle_y2 = self.scrollbar_canvas.coords(self.middle_of_handle)[3]
         handle_center = (handle_y2 - handle_y1) / 2 + handle_y1
 
-        coord_del = self.scrollbar_canvas.winfo_height() * value - handle_center
+        coord_del = (
+            self.scrollbar_canvas.winfo_height() * value - handle_center
+        )
         self.old_coord = self.scrollbar_canvas.winfo_height() * value
 
         self.scrollbar_canvas.move(self.middle_of_handle, 0, coord_del)
@@ -260,7 +263,9 @@ class Button:
             text = " " + self.default_data[self.name + "Text"]
 
         # Create Button and place
-        self.button = tk.Button(parent, self.button_style, compound="left", text=text, anchor="w")
+        self.button = tk.Button(
+            parent, self.button_style, compound="left", text=text, anchor="w"
+        )
         self.button.configure(width=width, height=height)
         self.button.place(x=x, y=y)
 
@@ -573,7 +578,9 @@ class Switch2:
         if self.state:
             self.switch.configure(image=self.icon_on)
         self.switch.place(x=0, y=2)
-        self.switch.bind("<ButtonRelease-1>", lambda event: self.toggle_switch(event))
+        self.switch.bind(
+            "<ButtonRelease-1>", lambda event: self.toggle_switch(event)
+        )
 
         # Text
         self.switch_text = tk.Label(
@@ -745,7 +752,9 @@ class Slider2:
         self.entry_x = self.frame_width - self.entry_width
         self.entry_y = 0
 
-        self.entry = tk.Entry(self.frame, self.entry_style, textvariable=self.entry_string)
+        self.entry = tk.Entry(
+            self.frame, self.entry_style, textvariable=self.entry_string
+        )
         self.entry.place(x=self.entry_x, y=self.entry_y)
         self.entry.bind("<Return>", lambda event: self.entry_input(event))
 
@@ -753,7 +762,9 @@ class Slider2:
         self.slider_pad = 20
         self.entry_pad = 20
         self.slider_left = self.slider_pad
-        self.slider_right = self.slider_canvas_width - self.entry_pad - self.entry_width
+        self.slider_right = (
+            self.slider_canvas_width - self.entry_pad - self.entry_width
+        )
         self.slider_center = (self.height + 1) / 2
 
         self.oval_loc = self.pos2coord(self.amount)
@@ -801,7 +812,9 @@ class Slider2:
             + self.slider_left
         )
 
-    def update_handle(self, event, also_update_entry=False, request_frame=True):
+    def update_handle(
+        self, event, also_update_entry=False, request_frame=True
+    ):
         if isinstance(event, float):
             position = event
 
@@ -825,7 +838,11 @@ class Slider2:
         # moving sends many events, so only update when the next frame is reached
         if position != self.amount:
             # Move handle to coordinate based on position
-            self.slider.move(self.handle, self.pos2coord(position) - self.pos2coord(self.amount), 0)
+            self.slider.move(
+                self.handle,
+                self.pos2coord(position) - self.pos2coord(self.amount),
+                0,
+            )
 
             # Save for next time
             self.amount = position
@@ -908,7 +925,9 @@ class VRAM_Indicator:
         if style_level == 1:
             self.frame_style = style.canvas_frame_label_1
 
-        self.frame = tk.Frame(self.parent, self.frame_style, width=self.width, height=self.height)
+        self.frame = tk.Frame(
+            self.parent, self.frame_style, width=self.width, height=self.height
+        )
         self.frame.place(x=self.x, y=self.y)
 
         self.label_name = tk.Label(
@@ -962,3 +981,94 @@ class VRAM_Indicator:
 
     def unhide(self):
         pass
+
+
+class DropdownSelection:
+    def __init__(
+        self,
+        parent,
+        name,
+        display_text,
+        function,
+        argument,
+        data_type,
+        values,
+        width,
+        height,
+        x,
+        y,
+        text_percent,
+    ):
+        self.blank = tk.PhotoImage()
+
+        self.default_data = DEFAULT_DATA
+        self.parent = parent
+        self.name = name
+        self.function = function
+        self.argument = argument
+        self.data_type = data_type
+        self.values = values
+        self.width = width
+        self.height = height
+        self.info = []
+
+        self.frame_style = style.canvas_frame_label_3
+        self.text_style = style.text_3
+        self.display_text = display_text + " "
+
+        # Initial data
+        self.selection = tk.StringVar(value=list(self.values.keys())[0])
+
+        # Frame to hold everything
+        self.ts_frame = tk.Frame(
+            self.parent, self.frame_style, width=self.width, height=self.height
+        )
+        self.ts_frame.place(x=x, y=y)
+        self.ts_frame.bind("<Enter>", lambda event: self.on_enter())
+
+        self.text_width = int(width * (1.0 - text_percent))
+
+        # Create the text on the left
+        self.text_label = tk.Label(
+            self.ts_frame,
+            self.text_style,
+            image=self.blank,
+            compound="c",
+            text=self.display_text,
+            anchor="e",
+            width=self.text_width,
+            height=height,
+        )
+        self.text_label.place(x=0, y=0)
+        x_spacing = self.text_width + 10
+
+        combostyle = ttk.Style()
+        combostyle.theme_create(
+            "combostyle", parent="alt", settings=style.combo
+        )
+        combostyle.theme_use("combostyle")
+
+        self.dropdown = ttk.Combobox(
+            self.ts_frame, values=list(self.values.keys())
+        )
+        self.dropdown.current(0)
+        self.dropdown.bind(
+            "<<ComboboxSelected>>", self.handle_selection_change
+        )
+        self.dropdown.place(x=x_spacing, y=0)
+
+    def handle_selection_change(self, event):
+        self.function(self.argument, self.name)
+
+    def add_info_frame(self, info):
+        self.info = info
+
+    def get_data_type(self):
+        return self.data_type
+
+    def get(self):
+        return self.values[self.dropdown.get()]
+
+    def on_enter(self):
+        if self.info:
+            self.info.configure(text=self.default_data[self.name + "InfoText"])

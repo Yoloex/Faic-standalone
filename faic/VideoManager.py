@@ -49,15 +49,15 @@ class VideoManager:
 
         self.capture = None  # cv2 video
 
-        self.action_q = []  # queue for sending to the coordinator
-        self.frame_q = []  # queue for converted result frames that are ready for coordinator
+        self.action_q = []  # queue for sending to coordinator
+        self.frame_q = []  # result frames queue ready for coordinator
         self.video_q = Queue(maxsize=1)
 
         # Threads
         self.read_thread = None
         self.swap_thread = None
 
-        self.found_faces = []  # embedding that maps the found faces to source faces
+        self.found_faces = []
         self.parameters = []
         self.control = []
         self.latent = None
@@ -83,9 +83,7 @@ class VideoManager:
         if self.capture:
             self.capture.release()
 
-        device = 0 if self.parameters["CameraSourceSel"] == "HD Webcam" else 1
-
-        self.capture = cv2.VideoCapture(device)
+        self.capture = cv2.VideoCapture(self.parameters["CameraSourceSel"])
         self.capture.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
         self.capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
@@ -113,7 +111,9 @@ class VideoManager:
         if len(self.found_faces):
             source = self.found_faces[0]["AssignedEmbedding"]
             self.latent = (
-                torch.from_numpy(self.models.calc_swapper_latent(source)).float().to("cuda")
+                torch.from_numpy(self.models.calc_swapper_latent(source))
+                .float()
+                .to("cuda")
             )
         # Add threads to Queue
 
@@ -155,9 +155,13 @@ class VideoManager:
         if img_x < 512 and img_y < 512:
             # if x is smaller, set x to 512
             if img_x <= img_y:
-                tscale = v2.Resize((int(512 * img_y / img_x), 512), antialias=True)
+                tscale = v2.Resize(
+                    (int(512 * img_y / img_x), 512), antialias=True
+                )
             else:
-                tscale = v2.Resize((512, int(512 * img_x / img_y)), antialias=True)
+                tscale = v2.Resize(
+                    (512, int(512 * img_x / img_y)), antialias=True
+                )
 
             img = tscale(img)
 
@@ -170,7 +174,9 @@ class VideoManager:
             img = tscale(img)
 
         # Find all faces in frame and return a list of 5-pt kpss
-        kpss = self.models.run_detect(img, max_num=1, score=PARAM_VARS["DetectScore"])
+        kpss = self.models.run_detect(
+            img, max_num=1, score=PARAM_VARS["DetectScore"]
+        )
         if kpss is None or len(kpss) == 0:
             return
         img = self.swap_core(img, kpss[0], parameters, control)
@@ -216,7 +222,9 @@ class VideoManager:
             interpolation=v2.InterpolationMode.NEAREST,
         )
 
-        original_face_512 = v2.functional.crop(original_face_512, 0, 0, 512, 512)  # 3, 512, 512
+        original_face_512 = v2.functional.crop(
+            original_face_512, 0, 0, 512, 512
+        )  # 3, 512, 512
         original_face_256 = t256(original_face_512)
         original_face_128 = t128(original_face_256)
 
@@ -234,13 +242,17 @@ class VideoManager:
 
         # Format to 3x128x128 [0..255] uint8
         swap = torch.squeeze(swap)
-        swap = torch.mul(swap, 255)  # should I carry [0..1] through the pipe insteadf?
+        swap = torch.mul(
+            swap, 255
+        )  # should I carry [0..1] through the pipe insteadf?
         swap = torch.clamp(swap, 0, 255)
         swap = swap.type(torch.uint8)
         swap = t512(swap)
 
         # Create border mask
-        border_mask = torch.ones((128, 128), dtype=torch.float32, device=device)
+        border_mask = torch.ones(
+            (128, 128), dtype=torch.float32, device=device
+        )
         border_mask = torch.unsqueeze(border_mask, 0)
 
         # if parameters['BorderState']:
@@ -270,7 +282,8 @@ class VideoManager:
 
         # Add blur to swap_mask results
         gauss = transforms.GaussianBlur(
-            PARAM_VARS["BlendAmout"] * 2 + 1, (PARAM_VARS["BlendAmout"] + 1) * 0.2
+            PARAM_VARS["BlendAmout"] * 2 + 1,
+            (PARAM_VARS["BlendAmout"] + 1) * 0.2,
         )
         swap_mask = gauss(swap_mask)
 
@@ -283,8 +296,16 @@ class VideoManager:
         IM512 = tform.inverse.params[0:2, :]
         corners = np.array([[0, 0], [0, 511], [511, 0], [511, 511]])
 
-        x = IM512[0][0] * corners[:, 0] + IM512[0][1] * corners[:, 1] + IM512[0][2]
-        y = IM512[1][0] * corners[:, 0] + IM512[1][1] * corners[:, 1] + IM512[1][2]
+        x = (
+            IM512[0][0] * corners[:, 0]
+            + IM512[0][1] * corners[:, 1]
+            + IM512[0][2]
+        )
+        y = (
+            IM512[1][0] * corners[:, 0]
+            + IM512[1][1] * corners[:, 1]
+            + IM512[1][2]
+        )
 
         left = floor(np.min(x))
         if left < 0:
@@ -300,7 +321,9 @@ class VideoManager:
             bottom = img.shape[1]
 
         # Untransform the swap
-        swap = v2.functional.pad(swap, (0, 0, img.shape[2] - 512, img.shape[1] - 512))
+        swap = v2.functional.pad(
+            swap, (0, 0, img.shape[2] - 512, img.shape[1] - 512)
+        )
         swap = v2.functional.affine(
             swap,
             tform.inverse.rotation * 57.2958,
@@ -314,7 +337,9 @@ class VideoManager:
         swap = swap.permute(1, 2, 0)
 
         # Untransform the swap mask
-        swap_mask = v2.functional.pad(swap_mask, (0, 0, img.shape[2] - 512, img.shape[1] - 512))
+        swap_mask = v2.functional.pad(
+            swap_mask, (0, 0, img.shape[2] - 512, img.shape[1] - 512)
+        )
         swap_mask = v2.functional.affine(
             swap_mask,
             tform.inverse.rotation * 57.2958,
@@ -371,13 +396,17 @@ class VideoManager:
             temp = v2.functional.crop(temp, 0, 0, 512, 512)
 
         temp = torch.div(temp, 255)
-        temp = v2.functional.normalize(temp, (0.5, 0.5, 0.5), (0.5, 0.5, 0.5), inplace=False)
+        temp = v2.functional.normalize(
+            temp, (0.5, 0.5, 0.5), (0.5, 0.5, 0.5), inplace=False
+        )
         if parameters["RestorerTypeTextSel"] == "GPEN256":
             temp = t256(temp)
         temp = torch.unsqueeze(temp, 0).contiguous().type(torch.float16)
 
         # Bindings
-        outpred = torch.empty((1, 3, 256, 256), dtype=torch.float16, device=device).contiguous()
+        outpred = torch.empty(
+            (1, 3, 256, 256), dtype=torch.float16, device=device
+        ).contiguous()
         self.models.run_GPEN_256(temp, outpred)
 
         # Format back to cxHxW @ 255
@@ -406,7 +435,10 @@ class VideoManager:
 
         # Blend
         alpha = float(parameters["RestorerSlider"]) / 100.0
-        outpred = torch.add(torch.mul(outpred, alpha), torch.mul(swapped_face_upscaled, 1 - alpha))
+        outpred = torch.add(
+            torch.mul(outpred, alpha),
+            torch.mul(swapped_face_upscaled, 1 - alpha),
+        )
 
         return outpred
 
