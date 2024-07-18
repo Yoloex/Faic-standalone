@@ -63,16 +63,19 @@ class VideoManager:
         self.latent = None
 
     def load_models(self):
-        swap = torch.randn([1, 3, 128, 128], dtype=torch.float32).to(device)
-        img = torch.randn([1, 3, 256, 256], dtype=torch.float32).to(device)
-        latent = torch.randn([1, 512], dtype=torch.float32).to(device)
-        det_img = torch.randn([3, 480, 640], dtype=torch.float32).to(device)
+        swap = torch.randn([1, 3, 128, 128], dtype=torch.float32, device=device)
+        img = torch.randn([1, 3, 256, 256], dtype=torch.float32, device=device)
+        latent = torch.randn([1, 512], dtype=torch.float32, device=device)
+        det_img = torch.randn([3, 480, 640], dtype=torch.float32, device=device)
+        img_512 = torch.randn([1, 3, 512, 512], dtype=torch.float16, device=device)
+
         kps = np.random.randn(5, 2)
-        sr_in = torch.randn([1, 3, 480, 640], dtype=torch.float32).to(device)
-        sr_out = torch.randn([1, 3, 960, 1280], dtype=torch.float32).to(device)
+        sr_in = torch.randn([1, 3, 480, 640], dtype=torch.float32, device=device)
+        sr_out = torch.randn([1, 3, 960, 1280], dtype=torch.float32, device=device)
 
         self.models.run_swapper(swap, latent, swap)
         self.models.run_GPEN_256(img, img)
+        self.models.run_GPEN_512(img_512, img_512)
         self.models.run_recognize(det_img, kps)
         # self.models.run_super_resolution(sr_in, sr_out)
 
@@ -155,13 +158,9 @@ class VideoManager:
         if img_x < 512 and img_y < 512:
             # if x is smaller, set x to 512
             if img_x <= img_y:
-                tscale = v2.Resize(
-                    (int(512 * img_y / img_x), 512), antialias=True
-                )
+                tscale = v2.Resize((int(512 * img_y / img_x), 512), antialias=True)
             else:
-                tscale = v2.Resize(
-                    (512, int(512 * img_x / img_y)), antialias=True
-                )
+                tscale = v2.Resize((512, int(512 * img_x / img_y)), antialias=True)
 
             img = tscale(img)
 
@@ -250,9 +249,7 @@ class VideoManager:
         swap = t512(swap)
 
         # Create border mask
-        border_mask = torch.ones(
-            (128, 128), dtype=torch.float32, device=device
-        )
+        border_mask = torch.ones((128, 128), dtype=torch.float32, device=device)
         border_mask = torch.unsqueeze(border_mask, 0)
 
         # if parameters['BorderState']:
@@ -296,16 +293,8 @@ class VideoManager:
         IM512 = tform.inverse.params[0:2, :]
         corners = np.array([[0, 0], [0, 511], [511, 0], [511, 511]])
 
-        x = (
-            IM512[0][0] * corners[:, 0]
-            + IM512[0][1] * corners[:, 1]
-            + IM512[0][2]
-        )
-        y = (
-            IM512[1][0] * corners[:, 0]
-            + IM512[1][1] * corners[:, 1]
-            + IM512[1][2]
-        )
+        x = IM512[0][0] * corners[:, 0] + IM512[0][1] * corners[:, 1] + IM512[0][2]
+        y = IM512[1][0] * corners[:, 0] + IM512[1][1] * corners[:, 1] + IM512[1][2]
 
         left = floor(np.min(x))
         if left < 0:
@@ -401,13 +390,18 @@ class VideoManager:
         )
         if parameters["RestorerTypeTextSel"] == "GPEN256":
             temp = t256(temp)
-        temp = torch.unsqueeze(temp, 0).contiguous().type(torch.float16)
+            temp = torch.unsqueeze(temp, 0).contiguous().type(torch.float16)
+            outpred = torch.empty(
+                (1, 3, 256, 256), dtype=torch.float16, device=device
+            ).contiguous()
+            self.models.run_GPEN_256(temp, outpred)
 
-        # Bindings
-        outpred = torch.empty(
-            (1, 3, 256, 256), dtype=torch.float16, device=device
-        ).contiguous()
-        self.models.run_GPEN_256(temp, outpred)
+        else:
+            temp = torch.unsqueeze(temp, 0).contiguous().type(torch.float16)
+            outpred = torch.empty(
+                (1, 3, 512, 512), dtype=torch.float16, device=device
+            ).contiguous()
+            self.models.run_GPEN_512(temp, outpred)
 
         # Format back to cxHxW @ 255
         outpred = torch.squeeze(outpred)

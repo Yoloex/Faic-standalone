@@ -35,17 +35,32 @@ class Models:
 
         self.emap = []
         self.GPEN_256_model = []
+        self.GPEN_512_model = []
 
-        self.syncvec = torch.empty((1, 1), dtype=torch.float32, device="cuda:0")
+        self.syncvec = torch.empty(
+            (1, 1), dtype=torch.float32, device="cuda:0"
+        )
 
     def get_gpu_memory(self):
         command = "nvidia-smi --query-gpu=memory.total --format=csv"
-        memory_total_info = sp.check_output(command.split()).decode("ascii").split("\n")[:-1][1:]
-        memory_total = [int(x.split()[0]) for i, x in enumerate(memory_total_info)]
+        memory_total_info = (
+            sp.check_output(command.split())
+            .decode("ascii")
+            .split("\n")[:-1][1:]
+        )
+        memory_total = [
+            int(x.split()[0]) for i, x in enumerate(memory_total_info)
+        ]
 
         command = "nvidia-smi --query-gpu=memory.free --format=csv"
-        memory_free_info = sp.check_output(command.split()).decode("ascii").split("\n")[:-1][1:]
-        memory_free = [int(x.split()[0]) for i, x in enumerate(memory_free_info)]
+        memory_free_info = (
+            sp.check_output(command.split())
+            .decode("ascii")
+            .split("\n")[:-1][1:]
+        )
+        memory_free = [
+            int(x.split()[0]) for i, x in enumerate(memory_free_info)
+        ]
 
         memory_used = memory_total[0] - memory_free[0]
 
@@ -149,6 +164,33 @@ class Models:
         self.syncvec.cpu()
         self.GPEN_256_model.run_with_iobinding(io_binding)
 
+    def run_GPEN_512(self, image, output):
+        if not self.GPEN_512_model:
+            self.GPEN_512_model = onnxruntime.InferenceSession(
+                "./models/phase3_512.bin", providers=self.providers
+            )
+
+        io_binding = self.GPEN_512_model.io_binding()
+        io_binding.bind_input(
+            name="input",
+            device_type="cuda",
+            device_id=0,
+            element_type=np.float16,
+            shape=(1, 3, 512, 512),
+            buffer_ptr=image.data_ptr(),
+        )
+        io_binding.bind_output(
+            name="output",
+            device_type="cuda",
+            device_id=0,
+            element_type=np.float16,
+            shape=(1, 3, 512, 512),
+            buffer_ptr=output.data_ptr(),
+        )
+
+        self.syncvec.cpu()
+        self.GPEN_512_model.run_with_iobinding(io_binding)
+
     def run_super_resolution(self, img, output):
         if not self.sr_model:
             self.sr_model = onnxruntime.InferenceSession(
@@ -194,7 +236,9 @@ class Models:
         img = img.permute(1, 2, 0)
 
         det_img = torch.zeros(
-            (input_size[1], input_size[0], 3), dtype=torch.float32, device="cuda:0"
+            (input_size[1], input_size[0], 3),
+            dtype=torch.float32,
+            device="cuda:0",
         )
         det_img[:new_height, :new_width, :] = img
 
@@ -253,11 +297,13 @@ class Models:
             if key in center_cache:
                 anchor_centers = center_cache[key]
             else:
-                anchor_centers = np.stack(np.mgrid[:height, :width][::-1], axis=-1).astype(
-                    np.float32
-                )
+                anchor_centers = np.stack(
+                    np.mgrid[:height, :width][::-1], axis=-1
+                ).astype(np.float32)
                 anchor_centers = (anchor_centers * stride).reshape((-1, 2))
-                anchor_centers = np.stack([anchor_centers] * 2, axis=1).reshape((-1, 2))
+                anchor_centers = np.stack(
+                    [anchor_centers] * 2, axis=1
+                ).reshape((-1, 2))
                 if len(center_cache) < 100:
                     center_cache[key] = anchor_centers
 
@@ -345,8 +391,12 @@ class Models:
             )
             offset_dist_squared = np.sum(np.power(offsets, 2.0), 0)
 
-            values = area - offset_dist_squared * 2.0  # some extra weight on the centering
-            bindex = np.argsort(values)[::-1]  # some extra weight on the centering
+            values = (
+                area - offset_dist_squared * 2.0
+            )  # some extra weight on the centering
+            bindex = np.argsort(values)[
+                ::-1
+            ]  # some extra weight on the centering
             bindex = bindex[0:max_num]
 
             if kpss is not None:
@@ -405,4 +455,7 @@ class Models:
         self.recognition_model.run_with_iobinding(io_binding)
 
         # Return embedding
-        return np.array(io_binding.copy_outputs_to_cpu()).flatten(), cropped_image
+        return (
+            np.array(io_binding.copy_outputs_to_cpu()).flatten(),
+            cropped_image,
+        )
