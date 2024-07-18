@@ -1010,6 +1010,8 @@ class DropdownSelection:
         self.values = values
         self.width = width
         self.height = height
+        self.x = x
+        self.y = y
         self.info = []
 
         self.frame_style = style.canvas_frame_label_3
@@ -1068,6 +1070,12 @@ class DropdownSelection:
 
     def get(self):
         return self.values[self.dropdown.get()]
+    
+    def hide(self):
+        self.ts_frame.place_forget()
+    
+    def unhide(self):
+        self.ts_frame.place(x=self.x, y=self.y)
 
     def on_enter(self):
         if self.info:
