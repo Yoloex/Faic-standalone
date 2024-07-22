@@ -36,31 +36,22 @@ class Models:
         self.emap = []
         self.GPEN_256_model = []
         self.GPEN_512_model = []
+        self.codeformer_model = []
 
-        self.syncvec = torch.empty(
-            (1, 1), dtype=torch.float32, device="cuda:0"
-        )
+        self.syncvec = torch.empty((1, 1), dtype=torch.float32, device="cuda:0")
 
     def get_gpu_memory(self):
         command = "nvidia-smi --query-gpu=memory.total --format=csv"
         memory_total_info = (
-            sp.check_output(command.split())
-            .decode("ascii")
-            .split("\n")[:-1][1:]
+            sp.check_output(command.split()).decode("ascii").split("\n")[:-1][1:]
         )
-        memory_total = [
-            int(x.split()[0]) for i, x in enumerate(memory_total_info)
-        ]
+        memory_total = [int(x.split()[0]) for i, x in enumerate(memory_total_info)]
 
         command = "nvidia-smi --query-gpu=memory.free --format=csv"
         memory_free_info = (
-            sp.check_output(command.split())
-            .decode("ascii")
-            .split("\n")[:-1][1:]
+            sp.check_output(command.split()).decode("ascii").split("\n")[:-1][1:]
         )
-        memory_free = [
-            int(x.split()[0]) for i, x in enumerate(memory_free_info)
-        ]
+        memory_free = [int(x.split()[0]) for i, x in enumerate(memory_free_info)]
 
         memory_used = memory_total[0] - memory_free[0]
 
@@ -191,6 +182,33 @@ class Models:
         self.syncvec.cpu()
         self.GPEN_512_model.run_with_iobinding(io_binding)
 
+    def run_codeformer(self, image, output):
+        if not self.codeformer_model:
+            self.codeformer_model = onnxruntime.InferenceSession(
+                "./models/phase3_code.bin", providers=self.providers
+            )
+
+        io_binding = self.codeformer_model.io_binding()
+        io_binding.bind_input(
+            name="input",
+            device_type="cuda",
+            device_id=0,
+            element_type=np.float16,
+            shape=(1, 3, 512, 512),
+            buffer_ptr=image.data_ptr(),
+        )
+        io_binding.bind_output(
+            name="output",
+            device_type="cuda",
+            device_id=0,
+            element_type=np.float16,
+            shape=(1, 3, 512, 512),
+            buffer_ptr=output.data_ptr(),
+        )
+
+        self.syncvec.cpu()
+        self.codeformer_model.run_with_iobinding(io_binding)
+
     def run_super_resolution(self, img, output):
         if not self.sr_model:
             self.sr_model = onnxruntime.InferenceSession(
@@ -301,9 +319,9 @@ class Models:
                     np.mgrid[:height, :width][::-1], axis=-1
                 ).astype(np.float32)
                 anchor_centers = (anchor_centers * stride).reshape((-1, 2))
-                anchor_centers = np.stack(
-                    [anchor_centers] * 2, axis=1
-                ).reshape((-1, 2))
+                anchor_centers = np.stack([anchor_centers] * 2, axis=1).reshape(
+                    (-1, 2)
+                )
                 if len(center_cache) < 100:
                     center_cache[key] = anchor_centers
 
@@ -394,9 +412,7 @@ class Models:
             values = (
                 area - offset_dist_squared * 2.0
             )  # some extra weight on the centering
-            bindex = np.argsort(values)[
-                ::-1
-            ]  # some extra weight on the centering
+            bindex = np.argsort(values)[::-1]  # some extra weight on the centering
             bindex = bindex[0:max_num]
 
             if kpss is not None:

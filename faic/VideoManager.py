@@ -29,14 +29,15 @@ class VideoManager:
 
         self.arcface_dst = np.array(
             [
-                [38.2946, 51.6963],
-                [73.5318, 51.5014],
-                [56.0252, 71.7366],
-                [41.5493, 92.3655],
-                [70.7299, 92.2041],
+                [48.2453, 59.9867],
+                [79.7256, 60.0484],
+                [64.1585, 78.5048],
+                [50.3152, 92.8526],
+                [78.2722, 92.7877],
             ],
             dtype=np.float32,
         )
+
         self.FFHQ_kps = np.array(
             [
                 [192.98138, 239.94708],
@@ -77,6 +78,7 @@ class VideoManager:
         self.models.run_GPEN_256(img, img)
         self.models.run_GPEN_512(img_512, img_512)
         self.models.run_recognize(det_img, kps)
+        self.models.run_codeformer(img_512, img_512)
         # self.models.run_super_resolution(sr_in, sr_out)
 
     def assign_found_faces(self, found_faces):
@@ -396,12 +398,19 @@ class VideoManager:
             ).contiguous()
             self.models.run_GPEN_256(temp, outpred)
 
-        else:
+        if parameters["RestorerTypeTextSel"] == "GPEN512":
             temp = torch.unsqueeze(temp, 0).contiguous().type(torch.float16)
             outpred = torch.empty(
                 (1, 3, 512, 512), dtype=torch.float16, device=device
             ).contiguous()
             self.models.run_GPEN_512(temp, outpred)
+
+        if parameters["RestorerTypeTextSel"] == "Codeformer":
+            temp = torch.unsqueeze(temp, 0).contiguous().type(torch.float16)
+            outpred = torch.empty(
+                (1, 3, 512, 512), dtype=torch.float16, device=device
+            ).contiguous()
+            self.models.run_codeformer(temp, outpred)
 
         # Format back to cxHxW @ 255
         outpred = torch.squeeze(outpred)
