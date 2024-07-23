@@ -79,6 +79,7 @@ class VideoManager:
         self.models.run_GPEN_512(img_512, img_512)
         self.models.run_recognize(det_img, kps)
         self.models.run_codeformer(img_512, img_512)
+        self.models.run_restoreplus(img_512, img_512)
         # self.models.run_super_resolution(sr_in, sr_out)
 
     def assign_found_faces(self, found_faces):
@@ -411,6 +412,13 @@ class VideoManager:
                 (1, 3, 512, 512), dtype=torch.float16, device=device
             ).contiguous()
             self.models.run_codeformer(temp, outpred)
+
+        if parameters["RestorerTypeTextSel"] == "RestorePlus":
+            temp = torch.unsqueeze(temp, 0).contiguous().type(torch.float16)
+            outpred = torch.empty(
+                (1, 3, 512, 512), dtype=torch.float16, device=device
+            ).contiguous()
+            self.models.run_restoreplus(temp, outpred)
 
         # Format back to cxHxW @ 255
         outpred = torch.squeeze(outpred)
