@@ -76,7 +76,7 @@ class VideoManager:
 
         self.models.run_swapper(swap, latent, swap)
         self.models.run_GPEN_256(img, img)
-        # self.models.run_GPEN_512(img_512, img_512)
+        self.models.run_GPEN_512(img_512, img_512)
         self.models.run_recognize(det_img, kps)
         self.models.run_restoreplus(img_512, img_512)
         self.models.run_super_resolution(sr_in, sr_out)
