@@ -212,25 +212,25 @@ class Models:
     def run_super_resolution(self, img, output):
         if not self.sr_model:
             self.sr_model = onnxruntime.InferenceSession(
-                "./models/realesrgan_x2_fp16.onnx", providers=self.providers
+                "./models/phase4.bin", providers=self.providers
             )
 
         io_binding = self.sr_model.io_binding()
         io_binding.bind_input(
-            name="x",
+            name="input",
             device_type="cuda",
             device_id=0,
-            element_type=np.float32,
-            shape=(1, 3, 480, 640),
+            element_type=np.float16,
+            shape=(1, 3, 720, 1280),
             buffer_ptr=img.data_ptr(),
         )
 
         io_binding.bind_output(
-            name="1926",
+            name="output",
             device_type="cuda",
             device_id=0,
-            element_type=np.float32,
-            shape=(1, 3, 960, 1280),
+            element_type=np.float16,
+            shape=(1, 3, 1440, 2560),
             buffer_ptr=output.data_ptr(),
         )
         self.sr_model.run_with_iobinding(io_binding)

@@ -71,15 +71,15 @@ class VideoManager:
         img_512 = torch.randn([1, 3, 512, 512], dtype=torch.float16, device=device)
 
         kps = np.random.randn(5, 2)
-        sr_in = torch.randn([1, 3, 480, 640], dtype=torch.float32, device=device)
-        sr_out = torch.randn([1, 3, 960, 1280], dtype=torch.float32, device=device)
+        sr_in = torch.randn([1, 3, 720, 1280], dtype=torch.float16, device=device)
+        sr_out = torch.randn([1, 3, 1440, 2560], dtype=torch.float16, device=device)
 
         self.models.run_swapper(swap, latent, swap)
         self.models.run_GPEN_256(img, img)
-        self.models.run_GPEN_512(img_512, img_512)
+        # self.models.run_GPEN_512(img_512, img_512)
         self.models.run_recognize(det_img, kps)
         self.models.run_restoreplus(img_512, img_512)
-        # self.models.run_super_resolution(sr_in, sr_out)
+        self.models.run_super_resolution(sr_in, sr_out)
 
     def assign_found_faces(self, found_faces):
         self.found_faces = found_faces
@@ -181,19 +181,16 @@ class VideoManager:
         if kpss is None or len(kpss) == 0:
             return
         img = self.swap_core(img, kpss[0], parameters, control)
-        img = img.permute(1, 2, 0)
+        img = (img / 255).unsqueeze(0).to(torch.float16).contiguous()
 
-        # Unscale small videos
-        if img_x < 512 or img_y < 512:
-            tscale = v2.Resize((img_y, img_x), antialias=True)
-            img = img.permute(2, 0, 1)
-            img = tscale(img)
-            img = img.permute(1, 2, 0)
-            # img = tscale(img / 255).contiguous()
-            # outpred = torch.empty((1, 3, 960, 1280), dtype=torch.float32, device=device).contiguous()
-            # self.models.run_super_resolution(img, outpred)
-            # img = outpred.squeeze().permute(1, 2, 0)
-            # img = torch.clamp(img * 255, 0, 255)
+        outpred = torch.empty(
+            (1, 3, 1440, 2560), dtype=torch.float16, device=device
+        ).contiguous()
+
+        self.models.run_super_resolution(img, outpred)
+
+        img = outpred.squeeze().permute(1, 2, 0)
+        img = torch.clamp(img * 255, 0, 255)
         img = img.cpu().numpy()
 
         return img.astype(np.uint8)
@@ -405,7 +402,6 @@ class VideoManager:
             ).contiguous()
             self.models.run_GPEN_512(temp, outpred)
 
-        
         if parameters["RestorerTypeTextSel"] == "RestorePlus":
             temp = torch.unsqueeze(temp, 0).contiguous().type(torch.float16)
             outpred = torch.empty(

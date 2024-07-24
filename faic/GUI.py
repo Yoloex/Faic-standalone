@@ -140,9 +140,7 @@ class GUI(tk.Tk):
         # Input Faces
         # Button Frame
         frame = tk.Frame(v_f_frame, style.canvas_frame_label_2, height=42)
-        frame.grid(
-            row=0, column=0, columnspan=2, sticky="NEWS", padx=0, pady=0
-        )
+        frame.grid(row=0, column=0, columnspan=2, sticky="NEWS", padx=0, pady=0)
 
         # Buttons
         self.widget["FacesFolderButton"] = GE.Button(
@@ -165,9 +163,7 @@ class GUI(tk.Tk):
         self.source_faces_canvas.grid(
             row=1, column=0, sticky="NEWS", padx=10, pady=10
         )
-        self.source_faces_canvas.bind(
-            "<MouseWheel>", self.source_faces_mouse_wheel
-        )
+        self.source_faces_canvas.bind("<MouseWheel>", self.source_faces_mouse_wheel)
         self.source_faces_canvas.create_text(
             8,
             20,
@@ -211,9 +207,7 @@ class GUI(tk.Tk):
         self.layer["preview_column"] = tk.Frame(
             r_frame, style.canvas_bg, width=width
         )
-        self.layer["preview_column"].grid(
-            row=0, column=0, sticky="NEWS", pady=0
-        )
+        self.layer["preview_column"].grid(row=0, column=0, sticky="NEWS", pady=0)
         self.layer["preview_column"].grid_columnconfigure(0, weight=0)
 
         # Controls
@@ -223,9 +217,7 @@ class GUI(tk.Tk):
 
         # Videos
         # Found Faces
-        ff_frame = tk.Frame(
-            self.layer["preview_column"], style.canvas_frame_label_1
-        )
+        ff_frame = tk.Frame(self.layer["preview_column"], style.canvas_frame_label_1)
         ff_frame.grid(row=1, column=0, sticky="NEWS", pady=1)
         ff_frame.grid_columnconfigure(0, weight=0)
         ff_frame.grid_columnconfigure(1, weight=0)
@@ -267,9 +259,7 @@ class GUI(tk.Tk):
             ff_frame, style.canvas_frame_label_3, height=100
         )
         self.found_faces_canvas.grid(row=0, column=1, sticky="NEWS")
-        self.found_faces_canvas.bind(
-            "<MouseWheel>", self.target_faces_mouse_wheel
-        )
+        self.found_faces_canvas.bind("<MouseWheel>", self.target_faces_mouse_wheel)
         self.found_faces_canvas.create_text(
             8,
             45,
@@ -407,9 +397,7 @@ class GUI(tk.Tk):
             width=width - 10,
         )
         self.layer["tooltip_label"].place(x=5, y=5)
-        self.static_widget["13"] = GE.Separator_x(
-            self.layer["tooltip_frame"], 0, 0
-        )
+        self.static_widget["13"] = GE.Separator_x(self.layer["tooltip_frame"], 0, 0)
 
     def get_available_cam(self):
 
@@ -431,19 +419,14 @@ class GUI(tk.Tk):
         self.camera = cv2.VideoCapture(self.parameters["CameraSourceSel"])
 
     def target_faces_mouse_wheel(self, event):
-        self.found_faces_canvas.xview_scroll(
-            1 * int(event.delta / 120.0), "units"
-        )
+        self.found_faces_canvas.xview_scroll(1 * int(event.delta / 120.0), "units")
 
     def source_faces_mouse_wheel(self, event):
-        self.source_faces_canvas.yview_scroll(
-            -int(event.delta / 120.0), "units"
-        )
+        self.source_faces_canvas.yview_scroll(-int(event.delta / 120.0), "units")
 
         # Center of visible canvas as a percentage of the entire canvas
         center = (
-            self.source_faces_canvas.yview()[1]
-            - self.source_faces_canvas.yview()[0]
+            self.source_faces_canvas.yview()[1] - self.source_faces_canvas.yview()[0]
         ) / 2
         center = center + self.source_faces_canvas.yview()[0]
         self.static_widget["input_faces_scrollbar"].set(center)
@@ -504,9 +487,7 @@ class GUI(tk.Tk):
             if self.json_dict["source faces"] is None:
                 self.widget["FacesFolderButton"].error_button()
             else:
-                path = self.create_path_string(
-                    self.json_dict["source faces"], 28
-                )
+                path = self.create_path_string(self.json_dict["source faces"], 28)
                 self.input_faces_text.configure(text=path)
 
         # Check for a user parameters file and load if present
@@ -621,8 +602,8 @@ class GUI(tk.Tk):
                         except IndexError:
                             print("Image cropped too close:", file)
                         else:
-                            face_emb, cropped_image = (
-                                self.models.run_recognize(img, kpss)
+                            face_emb, cropped_image = self.models.run_recognize(
+                                img, kpss
                             )
                             crop = cv2.cvtColor(
                                 cropped_image.cpu().numpy(), cv2.COLOR_BGR2RGB
@@ -688,9 +669,7 @@ class GUI(tk.Tk):
                     anchor="nw",
                 )
 
-                self.static_widget["input_faces_scrollbar"].resize_scrollbar(
-                    None
-                )
+                self.static_widget["input_faces_scrollbar"].resize_scrollbar(None)
 
     def find_face(self):
         if self.camera:
@@ -745,8 +724,8 @@ class GUI(tk.Tk):
                             "<MouseWheel>", self.target_faces_mouse_wheel
                         )
                         self.target_faces[last_index]["ButtonState"] = True
-                        self.target_faces[last_index]["Image"] = (
-                            ImageTk.PhotoImage(image=Image.fromarray(crop))
+                        self.target_faces[last_index]["Image"] = ImageTk.PhotoImage(
+                            image=Image.fromarray(crop)
                         )
                         self.target_faces[last_index]["Embedding"] = face[1]
                         self.target_faces[last_index]["EmbeddingNumber"] = 1
@@ -792,13 +771,9 @@ class GUI(tk.Tk):
 
         # If the source face is now on
         if self.source_faces[button]["ButtonState"]:
-            self.source_faces[button]["TKButton"].config(
-                style.media_button_on_3
-            )
+            self.source_faces[button]["TKButton"].config(style.media_button_on_3)
         else:
-            self.source_faces[button]["TKButton"].config(
-                style.media_button_off_3
-            )
+            self.source_faces[button]["TKButton"].config(style.media_button_off_3)
 
         # Determine which target face is selected
         # If there are target faces
@@ -825,9 +800,9 @@ class GUI(tk.Tk):
 
         # Toggle the selected Source Face
         if button != -1:
-            self.source_faces[button]["ButtonState"] = not self.source_faces[
-                button
-            ]["ButtonState"]
+            self.source_faces[button]["ButtonState"] = not self.source_faces[button][
+                "ButtonState"
+            ]
 
         # Highlight all True buttons
         for face in self.source_faces:
@@ -904,15 +879,14 @@ class GUI(tk.Tk):
     def toggle_swap(self):
         if not self.widget["SwapFacesButton"].get():
             if len(self.target_faces) > 0 and any(
-                source_button["ButtonState"]
-                for source_button in self.source_faces
+                source_button["ButtonState"] for source_button in self.source_faces
             ):
                 self.add_action("load_webcam")
                 self.widget["SwapFacesButton"].toggle_button()
                 self.widget["SwapFacesButton"].button.configure(
                     text=" Stop Faic Cam"
                 )
-                self.vcam = pyvirtualcam.Camera(width=1280, height=720, fps=25)
+                self.vcam = pyvirtualcam.Camera(width=2560, height=1440, fps=25)
 
             else:
                 messagebox.showwarning(
@@ -923,9 +897,7 @@ class GUI(tk.Tk):
         else:
             self.add_action("stop_swap")
             self.widget["SwapFacesButton"].toggle_button()
-            self.widget["SwapFacesButton"].button.configure(
-                text=" Start Faic Cam"
-            )
+            self.widget["SwapFacesButton"].button.configure(text=" Start Faic Cam")
             self.update_data("control", "SwapFacesButton")
             self.vcam.close()
 
