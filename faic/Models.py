@@ -36,7 +36,6 @@ class Models:
         self.emap = []
         self.GPEN_256_model = []
         self.GPEN_512_model = []
-        self.codeformer_model = []
         self.restoreplus_model = []
 
         self.syncvec = torch.empty((1, 1), dtype=torch.float32, device="cuda:0")
@@ -182,33 +181,6 @@ class Models:
 
         self.syncvec.cpu()
         self.GPEN_512_model.run_with_iobinding(io_binding)
-
-    def run_codeformer(self, image, output):
-        if not self.codeformer_model:
-            self.codeformer_model = onnxruntime.InferenceSession(
-                "./models/phase3_code.bin", providers=self.providers
-            )
-
-        io_binding = self.codeformer_model.io_binding()
-        io_binding.bind_input(
-            name="input",
-            device_type="cuda",
-            device_id=0,
-            element_type=np.float16,
-            shape=(1, 3, 512, 512),
-            buffer_ptr=image.data_ptr(),
-        )
-        io_binding.bind_output(
-            name="output",
-            device_type="cuda",
-            device_id=0,
-            element_type=np.float16,
-            shape=(1, 3, 512, 512),
-            buffer_ptr=output.data_ptr(),
-        )
-
-        self.syncvec.cpu()
-        self.codeformer_model.run_with_iobinding(io_binding)
 
     def run_restoreplus(self, image, output):
         if not self.restoreplus_model:
