@@ -9,6 +9,7 @@ import torchvision
 from numpy.linalg import norm as l2norm
 from skimage import transform as trans
 from torchvision.transforms import v2
+from faic.ResShift import load_model
 
 torchvision.disable_beta_transforms_warning()
 onnxruntime.set_default_logger_severity(4)
@@ -36,6 +37,7 @@ class Models:
         self.GPEN_256_model = []
         self.GPEN_512_model = []
         self.restoreplus_model = []
+        self.resshift_model = load_model()
 
         self.syncvec = torch.empty((1, 1), dtype=torch.float32, device="cuda:0")
 

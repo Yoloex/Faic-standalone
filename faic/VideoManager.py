@@ -395,11 +395,18 @@ class VideoManager:
             ).contiguous()
             self.models.run_restoreplus(temp, outpred)
 
-        # Format back to cxHxW @ 255
+        if parameters["RestorerTypeTextSel"] == "ResShift":
+            outpred = self.models.resshift_model.inference(
+                temp.unsqueeze(0).to(torch.float32)
+            )
+
+        if parameters["RestorerTypeTextSel"] != "ResShift":
+
+            outpred = torch.clamp(outpred, -1, 1)
+            outpred = torch.add(outpred, 1)
+            outpred = torch.div(outpred, 2)
+
         outpred = torch.squeeze(outpred)
-        outpred = torch.clamp(outpred, -1, 1)
-        outpred = torch.add(outpred, 1)
-        outpred = torch.div(outpred, 2)
         outpred = torch.mul(outpred, 255)
         if parameters["RestorerTypeTextSel"] == "GPEN256":
             outpred = t512(outpred)
