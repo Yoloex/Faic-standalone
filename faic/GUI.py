@@ -886,7 +886,7 @@ class GUI(tk.Tk):
                 self.widget["SwapFacesButton"].button.configure(
                     text=" Stop Faic Cam"
                 )
-                self.vcam = pyvirtualcam.Camera(width=2560, height=1440, fps=25)
+                self.vcam = pyvirtualcam.Camera(width=1280, height=720, fps=25)
 
             else:
                 messagebox.showwarning(

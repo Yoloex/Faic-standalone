@@ -71,15 +71,12 @@ class VideoManager:
         img_512 = torch.randn([1, 3, 512, 512], dtype=torch.float16, device=device)
 
         kps = np.random.randn(5, 2)
-        sr_in = torch.randn([1, 3, 720, 1280], dtype=torch.float16, device=device)
-        sr_out = torch.randn([1, 3, 1440, 2560], dtype=torch.float16, device=device)
 
         self.models.run_swapper(swap, latent, swap)
         self.models.run_GPEN_256(img, img)
         self.models.run_GPEN_512(img_512, img_512)
         self.models.run_recognize(det_img, kps)
         self.models.run_restoreplus(img_512, img_512)
-        self.models.run_super_resolution(sr_in, sr_out)
 
     def assign_found_faces(self, found_faces):
         self.found_faces = found_faces
@@ -181,18 +178,7 @@ class VideoManager:
         if kpss is None or len(kpss) == 0:
             return
         img = self.swap_core(img, kpss[0], parameters, control)
-        img = (img / 255).unsqueeze(0).to(torch.float16).contiguous()
-
-        outpred = torch.empty(
-            (1, 3, 1440, 2560), dtype=torch.float16, device=device
-        ).contiguous()
-
-        self.models.run_super_resolution(img, outpred)
-
-        img = outpred.squeeze().permute(1, 2, 0)
-        img = torch.clamp(img * 255, 0, 255)
-        img = img.cpu().numpy()
-
+        img = img.permute(1, 2, 0).cpu().numpy()
         return img.astype(np.uint8)
 
     def swap_core(self, img, kps, parameters, control):

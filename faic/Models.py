@@ -31,7 +31,6 @@ class Models:
         self.retinaface_model = []
         self.recognition_model = []
         self.swapper_model = []
-        self.sr_model = []
 
         self.emap = []
         self.GPEN_256_model = []
@@ -208,32 +207,6 @@ class Models:
 
         self.syncvec.cpu()
         self.restoreplus_model.run_with_iobinding(io_binding)
-
-    def run_super_resolution(self, img, output):
-        if not self.sr_model:
-            self.sr_model = onnxruntime.InferenceSession(
-                "./models/phase4.bin", providers=self.providers
-            )
-
-        io_binding = self.sr_model.io_binding()
-        io_binding.bind_input(
-            name="input",
-            device_type="cuda",
-            device_id=0,
-            element_type=np.float16,
-            shape=(1, 3, 720, 1280),
-            buffer_ptr=img.data_ptr(),
-        )
-
-        io_binding.bind_output(
-            name="output",
-            device_type="cuda",
-            device_id=0,
-            element_type=np.float16,
-            shape=(1, 3, 1440, 2560),
-            buffer_ptr=output.data_ptr(),
-        )
-        self.sr_model.run_with_iobinding(io_binding)
 
     def detect_retinaface(self, img, max_num, score):
         # Resize image to fit within the input_size
