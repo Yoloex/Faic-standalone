@@ -42,7 +42,7 @@ diffusion:
     latent_flag: True
 
 autoencoder: 
-  target: ldm.models.autoencoder.VQModelTorch
+  target: ldm.auto_models.autoencoder.VQModelTorch
   ckpt_path: weights/ffhq512_vq_f8_dim8_face.pth
   use_fp16: True
   params:
