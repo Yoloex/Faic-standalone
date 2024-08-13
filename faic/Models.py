@@ -9,7 +9,6 @@ import torchvision
 from numpy.linalg import norm as l2norm
 from skimage import transform as trans
 from torchvision.transforms import v2
-from faic.ResShift import load_model
 
 torchvision.disable_beta_transforms_warning()
 onnxruntime.set_default_logger_severity(4)
@@ -37,7 +36,6 @@ class Models:
         self.GPEN_256_model = []
         self.GPEN_512_model = []
         self.restoreplus_model = []
-        self.resshift_model = load_model()
 
         self.syncvec = torch.empty((1, 1), dtype=torch.float32, device="cuda:0")
 
@@ -63,7 +61,7 @@ class Models:
 
         if not self.retinaface_model:
             self.retinaface_model = onnxruntime.InferenceSession(
-                ".\models\phase1.bin", providers=self.providers
+                "./models/phase1.bin", providers=self.providers
             )
 
         kpss = self.detect_retinaface(img, max_num=max_num, score=score)
@@ -79,7 +77,7 @@ class Models:
     def run_recognize(self, img, kps):
         if not self.recognition_model:
             self.recognition_model = onnxruntime.InferenceSession(
-                ".\models\emb.bin", providers=self.providers
+                "./models/emb.bin", providers=self.providers
             )
 
         embedding, cropped_image = self.recognize(img, kps)
@@ -294,9 +292,8 @@ class Models:
                     np.mgrid[:height, :width][::-1], axis=-1
                 ).astype(np.float32)
                 anchor_centers = (anchor_centers * stride).reshape((-1, 2))
-                anchor_centers = np.stack([anchor_centers] * 2, axis=1).reshape(
-                    (-1, 2)
-                )
+                anchor_centers = np.stack([anchor_centers] * 2, axis=1).reshape((-1, 2))
+
                 if len(center_cache) < 100:
                     center_cache[key] = anchor_centers
 
@@ -315,14 +312,15 @@ class Models:
             bboxes_list.append(pos_bboxes)
 
             preds = []
+
             for i in range(0, kps_preds.shape[1], 2):
                 px = anchor_centers[:, i % 2] + kps_preds[:, i]
                 py = anchor_centers[:, i % 2 + 1] + kps_preds[:, i + 1]
 
                 preds.append(px)
                 preds.append(py)
+
             kpss = np.stack(preds, axis=-1)
-            # kpss = kps_preds
             kpss = kpss.reshape((kpss.shape[0], -1, 2))
             pos_kpss = kpss[pos_inds]
             kpss_list.append(pos_kpss)
@@ -351,6 +349,7 @@ class Models:
         orderb = scoresb.argsort()[::-1]
 
         keep = []
+
         while orderb.size > 0:
             i = orderb[0]
             keep.append(i)

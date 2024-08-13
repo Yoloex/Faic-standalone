@@ -48,7 +48,7 @@ DEFAULT_DATA = {
     "RestorerDetTypeTextSelModes": ["Blend"],
     "RestorerTypeTextSelInfoText": "RESTORER TYPE:\nSelect the Restorer type.",
     "RestorerTypeTextSelMode": "GPEN256",
-    "RestorerTypeTextSelModes": ["GPEN256", "GPEN512", "RestorePlus", "ResShift"],
+    "RestorerTypeTextSelModes": ["GPEN256", "GPEN512", "RestorePlus"],
     "CameraSourceSelInfoText": "Camera Source TYPE:\nSelect the right camera source.",
 }
 

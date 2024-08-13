@@ -160,9 +160,7 @@ class GUI(tk.Tk):
         self.source_faces_canvas = tk.Canvas(
             v_f_frame, style.canvas_frame_label_3, height=100, width=195
         )
-        self.source_faces_canvas.grid(
-            row=1, column=0, sticky="NEWS", padx=10, pady=10
-        )
+        self.source_faces_canvas.grid(row=1, column=0, sticky="NEWS", padx=10, pady=10)
         self.source_faces_canvas.bind("<MouseWheel>", self.source_faces_mouse_wheel)
         self.source_faces_canvas.create_text(
             8,
@@ -192,9 +190,7 @@ class GUI(tk.Tk):
         ### Parameters
         width = 398
 
-        r_frame = tk.Frame(
-            middle_frame, style.canvas_frame_label_3, bd=0, width=width
-        )
+        r_frame = tk.Frame(middle_frame, style.canvas_frame_label_3, bd=0, width=width)
         r_frame.grid(row=0, column=1, sticky="NEWS", pady=0, padx=1)
 
         r_frame.grid_rowconfigure(0, weight=0)
@@ -204,9 +200,7 @@ class GUI(tk.Tk):
         r_frame.grid_columnconfigure(1, weight=0)
 
         ### Preview
-        self.layer["preview_column"] = tk.Frame(
-            r_frame, style.canvas_bg, width=width
-        )
+        self.layer["preview_column"] = tk.Frame(r_frame, style.canvas_bg, width=width)
         self.layer["preview_column"].grid(row=0, column=0, sticky="NEWS", pady=0)
         self.layer["preview_column"].grid_columnconfigure(0, weight=0)
 
@@ -589,9 +583,7 @@ class GUI(tk.Tk):
                         height_start = int(img.size()[0] * pad_scale / 2)
                         height_end = height_start + int(img.size()[0])
 
-                        padding[
-                            height_start:height_end, width_start:width_end, :
-                        ] = img
+                        padding[height_start:height_end, width_start:width_end, :] = img
                         img = padding
 
                         img = img.permute(2, 0, 1)
@@ -694,9 +686,7 @@ class GUI(tk.Tk):
                         if kpss is not None:
                             face_kps = kpss[i]
 
-                        face_emb, cropped_img = self.models.run_recognize(
-                            img, face_kps
-                        )
+                        face_emb, cropped_img = self.models.run_recognize(img, face_kps)
                         ret.append([face_kps, face_emb, cropped_img])
 
                 except Exception:
@@ -883,9 +873,7 @@ class GUI(tk.Tk):
             ):
                 self.add_action("load_webcam")
                 self.widget["SwapFacesButton"].toggle_button()
-                self.widget["SwapFacesButton"].button.configure(
-                    text=" Stop Faic Cam"
-                )
+                self.widget["SwapFacesButton"].button.configure(text=" Stop Faic Cam")
                 self.vcam = pyvirtualcam.Camera(width=1280, height=720, fps=25)
 
             else:

@@ -1,4 +1,3 @@
-import threading
 from math import ceil, floor
 from queue import Queue
 from threading import Thread
@@ -19,8 +18,6 @@ torch.set_grad_enabled(False)
 onnxruntime.set_default_logger_severity(4)
 
 device = "cuda"
-
-lock = threading.Lock()
 
 
 class VideoManager:
@@ -172,11 +169,11 @@ class VideoManager:
             img = tscale(img)
 
         # Find all faces in frame and return a list of 5-pt kpss
-        kpss = self.models.run_detect(
-            img, max_num=1, score=PARAM_VARS["DetectScore"]
-        )
+        kpss = self.models.run_detect(img, max_num=1, score=PARAM_VARS["DetectScore"])
+
         if kpss is None or len(kpss) == 0:
             return
+
         img = self.swap_core(img, kpss[0], parameters, control)
         img = img.permute(1, 2, 0).cpu().numpy()
         return img.astype(np.uint8)
@@ -226,9 +223,7 @@ class VideoManager:
 
         # Format to 3x128x128 [0..255] uint8
         swap = torch.squeeze(swap)
-        swap = torch.mul(
-            swap, 255
-        )  # should I carry [0..1] through the pipe insteadf?
+        swap = torch.mul(swap, 255)  # should I carry [0..1] through the pipe insteadf?
         swap = torch.clamp(swap, 0, 255)
         swap = swap.type(torch.uint8)
         swap = t512(swap)
@@ -295,9 +290,7 @@ class VideoManager:
             bottom = img.shape[1]
 
         # Untransform the swap
-        swap = v2.functional.pad(
-            swap, (0, 0, img.shape[2] - 512, img.shape[1] - 512)
-        )
+        swap = v2.functional.pad(swap, (0, 0, img.shape[2] - 512, img.shape[1] - 512))
         swap = v2.functional.affine(
             swap,
             tform.inverse.rotation * 57.2958,
@@ -373,6 +366,7 @@ class VideoManager:
         temp = v2.functional.normalize(
             temp, (0.5, 0.5, 0.5), (0.5, 0.5, 0.5), inplace=False
         )
+
         if parameters["RestorerTypeTextSel"] == "GPEN256":
             temp = t256(temp)
             temp = torch.unsqueeze(temp, 0).contiguous().type(torch.float16)
@@ -395,19 +389,12 @@ class VideoManager:
             ).contiguous()
             self.models.run_restoreplus(temp, outpred)
 
-        if parameters["RestorerTypeTextSel"] == "ResShift":
-            outpred = self.models.resshift_model.inference(
-                temp.unsqueeze(0).to(torch.float32)
-            )
-
-        if parameters["RestorerTypeTextSel"] != "ResShift":
-
-            outpred = torch.clamp(outpred, -1, 1)
-            outpred = torch.add(outpred, 1)
-            outpred = torch.div(outpred, 2)
-
+        outpred = torch.clamp(outpred, -1, 1)
+        outpred = torch.add(outpred, 1)
+        outpred = torch.div(outpred, 2)
         outpred = torch.squeeze(outpred)
         outpred = torch.mul(outpred, 255)
+
         if parameters["RestorerTypeTextSel"] == "GPEN256":
             outpred = t512(outpred)
 
