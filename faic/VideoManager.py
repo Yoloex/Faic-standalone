@@ -169,16 +169,18 @@ class VideoManager:
             img = tscale(img)
 
         # Find all faces in frame and return a list of 5-pt kpss
-        kpss = self.models.run_detect(img, max_num=1, score=PARAM_VARS["DetectScore"])
+        kpss = self.models.run_detect(
+            img, max_num=1, score=PARAM_VARS["DetectScore"]
+        )
 
         if kpss is None or len(kpss) == 0:
             return
 
-        img = self.swap_core(img, kpss[0], parameters, control)
+        img = self.swap_core(img, kpss[0], parameters)
         img = img.permute(1, 2, 0).cpu().numpy()
         return img.astype(np.uint8)
 
-    def swap_core(self, img, kps, parameters, control):
+    def swap_core(self, img, kps, parameters):
         # 512 transforms
         dst = self.arcface_dst * 4.0
         dst[:, 0] += 32.0
@@ -223,7 +225,9 @@ class VideoManager:
 
         # Format to 3x128x128 [0..255] uint8
         swap = torch.squeeze(swap)
-        swap = torch.mul(swap, 255)  # should I carry [0..1] through the pipe insteadf?
+        swap = torch.mul(
+            swap, 255
+        )  # should I carry [0..1] through the pipe insteadf?
         swap = torch.clamp(swap, 0, 255)
         swap = swap.type(torch.uint8)
         swap = t512(swap)
@@ -290,7 +294,9 @@ class VideoManager:
             bottom = img.shape[1]
 
         # Untransform the swap
-        swap = v2.functional.pad(swap, (0, 0, img.shape[2] - 512, img.shape[1] - 512))
+        swap = v2.functional.pad(
+            swap, (0, 0, img.shape[2] - 512, img.shape[1] - 512)
+        )
         swap = v2.functional.affine(
             swap,
             tform.inverse.rotation * 57.2958,
