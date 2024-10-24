@@ -1,14 +1,14 @@
 # #!/usr/bin/env python3
-import faic.GUI as GUI
-import faic.Models as Models
-import faic.VideoManager as VM
+import faic.gui as GUI
+import faic.models as Models
+import faic.video_manager as VM
 
-resize_delay = 1
-mem_delay = 1
+RESIZE_DELAY = 1
+MEM_DELAY = 1
 
 
 def coordinator():
-    global gui, vm, action, frame, resize_delay, mem_delay
+    global gui, vm, action, frame, RESIZE_DELAY, MEM_DELAY
 
     if gui.get_action_length() > 0:
         action.append(gui.get_action())
@@ -54,24 +54,24 @@ def coordinator():
             print("Action not found: " + action[0][0] + " " + str(action[0][1]))
             action.pop(0)
 
-    if resize_delay > 100:
+    if RESIZE_DELAY > 100:
         gui.check_for_video_resize()
-        resize_delay = 0
+        RESIZE_DELAY = 0
     else:
-        resize_delay += 1
+        RESIZE_DELAY += 1
 
-    if mem_delay > 1000:
+    if MEM_DELAY > 1000:
         gui.update_vram_indicator()
-        mem_delay = 0
+        MEM_DELAY = 0
     else:
-        mem_delay += 1
+        MEM_DELAY += 1
 
     vm.process()
     gui.after(1, coordinator)
 
 
 def run():
-    global gui, vm, action, frame, resize_delay, mem_delay
+    global gui, vm, action, frame, RESIZE_DELAY, MEM_DELAY
 
     models = Models.Models()
     gui = GUI.GUI(models)

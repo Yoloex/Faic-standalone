@@ -11,13 +11,13 @@ from skimage import transform as trans
 from torchvision import transforms
 from torchvision.transforms import v2
 
-from faic.Dicts import PARAM_VARS
+from faic.dicts import PARAM_VARS
 
 torchvision.disable_beta_transforms_warning()
 torch.set_grad_enabled(False)
 onnxruntime.set_default_logger_severity(4)
 
-device = "cuda"
+DEVICE = "cuda"
 
 
 class VideoManager:
@@ -61,11 +61,11 @@ class VideoManager:
         self.latent = None
 
     def load_models(self):
-        swap = torch.randn([1, 3, 128, 128], dtype=torch.float32, device=device)
-        img = torch.randn([1, 3, 256, 256], dtype=torch.float32, device=device)
-        latent = torch.randn([1, 512], dtype=torch.float32, device=device)
-        det_img = torch.randn([3, 480, 640], dtype=torch.float32, device=device)
-        img_512 = torch.randn([1, 3, 512, 512], dtype=torch.float16, device=device)
+        swap = torch.randn([1, 3, 128, 128], dtype=torch.float32, device=DEVICE)
+        img = torch.randn([1, 3, 256, 256], dtype=torch.float32, device=DEVICE)
+        latent = torch.randn([1, 512], dtype=torch.float32, device=DEVICE)
+        det_img = torch.randn([3, 480, 640], dtype=torch.float32, device=DEVICE)
+        img_512 = torch.randn([1, 3, 512, 512], dtype=torch.float16, device=DEVICE)
 
         kps = np.random.randn(5, 2)
 
@@ -83,8 +83,8 @@ class VideoManager:
             self.capture.release()
 
         self.capture = cv2.VideoCapture(self.parameters["CameraSourceSel"])
-        self.capture.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-        self.capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+        self.capture.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
+        self.capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
 
     def add_action(self, action, param):
         temp = [action, param]
@@ -141,7 +141,6 @@ class VideoManager:
     def swap_video(self, target_image):
         # Grab a local copy of the parameters to prevent threading issues
         parameters = self.parameters.copy()
-        control = self.control.copy()
 
         # Load frame into VRAM
         img = torch.from_numpy(target_image).to("cuda")  # HxWxc
@@ -219,7 +218,7 @@ class VideoManager:
         itex = 1
 
         # Additional swaps based on strength
-        for i in range(itex):
+        for _ in range(itex):
             prev_swap = swap.clone()
             self.models.run_swapper(prev_swap, self.latent, swap)
 
@@ -233,7 +232,7 @@ class VideoManager:
         swap = t512(swap)
 
         # Create border mask
-        border_mask = torch.ones((128, 128), dtype=torch.float32, device=device)
+        border_mask = torch.ones((128, 128), dtype=torch.float32, device=DEVICE)
         border_mask = torch.unsqueeze(border_mask, 0)
 
         # if parameters['BorderState']:
@@ -254,7 +253,7 @@ class VideoManager:
         border_mask = gauss(border_mask)
 
         # Create image mask
-        swap_mask = torch.ones((128, 128), dtype=torch.float32, device=device)
+        swap_mask = torch.ones((128, 128), dtype=torch.float32, device=DEVICE)
         swap_mask = torch.unsqueeze(swap_mask, 0)
 
         # Restorer
@@ -281,11 +280,11 @@ class VideoManager:
         y = IM512[1][0] * corners[:, 0] + IM512[1][1] * corners[:, 1] + IM512[1][2]
 
         left = floor(np.min(x))
-        if left < 0:
-            left = 0
+        left = max(left, 0)
+
         top = floor(np.min(y))
-        if top < 0:
-            top = 0
+        top = max(top, 0)
+
         right = ceil(np.max(x))
         if right > img.shape[2]:
             right = img.shape[2]
@@ -377,21 +376,21 @@ class VideoManager:
             temp = t256(temp)
             temp = torch.unsqueeze(temp, 0).contiguous().type(torch.float16)
             outpred = torch.empty(
-                (1, 3, 256, 256), dtype=torch.float16, device=device
+                (1, 3, 256, 256), dtype=torch.float16, device=DEVICE
             ).contiguous()
             self.models.run_GPEN_256(temp, outpred)
 
         if parameters["RestorerTypeTextSel"] == "GPEN512":
             temp = torch.unsqueeze(temp, 0).contiguous().type(torch.float16)
             outpred = torch.empty(
-                (1, 3, 512, 512), dtype=torch.float16, device=device
+                (1, 3, 512, 512), dtype=torch.float16, device=DEVICE
             ).contiguous()
             self.models.run_GPEN_512(temp, outpred)
 
         if parameters["RestorerTypeTextSel"] == "RestorePlus":
             temp = torch.unsqueeze(temp, 0).contiguous().type(torch.float16)
             outpred = torch.empty(
-                (1, 3, 512, 512), dtype=torch.float16, device=device
+                (1, 3, 512, 512), dtype=torch.float16, device=DEVICE
             ).contiguous()
             self.models.run_restoreplus(temp, outpred)
 

@@ -1,6 +1,4 @@
 import subprocess as sp
-from itertools import product as product
-
 import numpy as np
 import onnx
 import onnxruntime
@@ -56,7 +54,7 @@ class Models:
 
         return memory_used, memory_total[0]
 
-    def run_detect(self, img, detect_mode="Retinaface", max_num=1, score=0.5):
+    def run_detect(self, img, max_num=1, score=0.5):
         kpss = []
 
         if not self.retinaface_model:
@@ -292,7 +290,9 @@ class Models:
                     np.mgrid[:height, :width][::-1], axis=-1
                 ).astype(np.float32)
                 anchor_centers = (anchor_centers * stride).reshape((-1, 2))
-                anchor_centers = np.stack([anchor_centers] * 2, axis=1).reshape((-1, 2))
+                anchor_centers = np.stack([anchor_centers] * 2, axis=1).reshape(
+                    (-1, 2)
+                )
 
                 if len(center_cache) < 100:
                     center_cache[key] = anchor_centers

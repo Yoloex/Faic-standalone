@@ -4,8 +4,8 @@ from tkinter.font import Font
 
 from PIL import Image, ImageTk
 
-import faic.Styles as style
-from faic.Dicts import DEFAULT_DATA
+import faic.styles as style
+from faic.dicts import DEFAULT_DATA
 
 
 class Separator_x:
@@ -181,9 +181,7 @@ class Scrollbar_y:
         handle_y2 = self.scrollbar_canvas.coords(self.middle_of_handle)[3]
         handle_center = (handle_y2 - handle_y1) / 2 + handle_y1
 
-        coord_del = (
-            self.scrollbar_canvas.winfo_height() * value - handle_center
-        )
+        coord_del = self.scrollbar_canvas.winfo_height() * value - handle_center
         self.old_coord = self.scrollbar_canvas.winfo_height() * value
 
         self.scrollbar_canvas.move(self.middle_of_handle, 0, coord_del)
@@ -812,9 +810,7 @@ class Slider2:
             + self.slider_left
         )
 
-    def update_handle(
-        self, event, also_update_entry=False, request_frame=True
-    ):
+    def update_handle(self, event, also_update_entry=False, request_frame=True):
         if isinstance(event, float):
             position = event
 
@@ -1045,18 +1041,12 @@ class DropdownSelection:
         x_spacing = self.text_width + 10
 
         combostyle = ttk.Style()
-        combostyle.theme_create(
-            "combostyle", parent="alt", settings=style.combo
-        )
+        combostyle.theme_create("combostyle", parent="alt", settings=style.combo)
         combostyle.theme_use("combostyle")
 
-        self.dropdown = ttk.Combobox(
-            self.ts_frame, values=list(self.values.keys())
-        )
+        self.dropdown = ttk.Combobox(self.ts_frame, values=list(self.values.keys()))
         self.dropdown.current(0)
-        self.dropdown.bind(
-            "<<ComboboxSelected>>", self.handle_selection_change
-        )
+        self.dropdown.bind("<<ComboboxSelected>>", self.handle_selection_change)
         self.dropdown.place(x=x_spacing, y=0)
 
     def handle_selection_change(self, event):
@@ -1070,10 +1060,10 @@ class DropdownSelection:
 
     def get(self):
         return self.values[self.dropdown.get()]
-    
+
     def hide(self):
         self.ts_frame.place_forget()
-    
+
     def unhide(self):
         self.ts_frame.place(x=self.x, y=self.y)
 
