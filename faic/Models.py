@@ -34,6 +34,7 @@ class Models:
         self.GPEN_256_model = []
         self.GPEN_512_model = []
         self.restoreplus_model = []
+        self.gfpgan_model = []
 
         self.syncvec = torch.empty((1, 1), dtype=torch.float32, device="cuda:0")
 
@@ -71,6 +72,9 @@ class Models:
         self.recognition_model = []
         self.swapper_model = []
         self.GPEN_256_model = []
+        self.GPEN_512_model = []
+        self.restoreplus_model = []
+        self.gfpgan_model = []
 
     def run_recognize(self, img, kps):
         if not self.recognition_model:
@@ -205,6 +209,33 @@ class Models:
 
         self.syncvec.cpu()
         self.restoreplus_model.run_with_iobinding(io_binding)
+
+    def run_gfpgan(self, image, output):
+        if not self.gfpgan_model:
+            self.gfpgan_model = onnxruntime.InferenceSession(
+                "./models/phase3_gfp.bin", providers=self.providers
+            )
+
+        io_binding = self.gfpgan_model.io_binding()
+        io_binding.bind_input(
+            name="input",
+            device_type="cuda",
+            device_id=0,
+            element_type=np.float32,
+            shape=(1, 3, 512, 512),
+            buffer_ptr=image.data_ptr(),
+        )
+        io_binding.bind_output(
+            name="output",
+            device_type="cuda",
+            device_id=0,
+            element_type=np.float32,
+            shape=(1, 3, 512, 512),
+            buffer_ptr=output.data_ptr(),
+        )
+
+        self.syncvec.cpu()
+        self.gfpgan_model.run_with_iobinding(io_binding)
 
     def detect_retinaface(self, img, max_num, score):
         # Resize image to fit within the input_size

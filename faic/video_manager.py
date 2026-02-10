@@ -393,6 +393,13 @@ class VideoManager:
                 (1, 3, 512, 512), dtype=torch.float16, device=DEVICE
             ).contiguous()
             self.models.run_restoreplus(temp, outpred)
+        
+        if parameters["RestorerTypeTextSel"] == "GFP":
+            temp = torch.unsqueeze(temp, 0).contiguous().type(torch.float32)
+            outpred = torch.empty(
+                (1, 3, 512, 512), dtype=torch.float32, device=DEVICE
+            ).contiguous()
+            self.models.run_gfpgan(temp, outpred)
 
         outpred = torch.clamp(outpred, -1, 1)
         outpred = torch.add(outpred, 1)
